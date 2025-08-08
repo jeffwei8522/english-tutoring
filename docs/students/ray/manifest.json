@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "student": "ray",
+  "displayName": "Ray",
+  "courses": {
+    "english": {
+      "label": "英文",
+      "color": "#1d4ed8"
+    },
+    "math": {
+      "label": "數學",
+      "color": "#059669"
+    }
+  },
+  "days": {
+    "2025-08-08": {},
+    "2025-08-01": {}
+  }
+}

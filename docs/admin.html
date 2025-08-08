@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="zh-Hant">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin · Manifest 編輯器</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<body class="bg-gray-100 p-4 sm:p-8">
+<div class="max-w-6xl mx-auto bg-white rounded-2xl shadow p-6">
+  <h1 class="text-2xl font-bold mb-3">Manifest 編輯器（離線匯出）</h1>
+  <p class="text-gray-600 mb-4">載入 <code>students/&lt;student&gt;/manifest.json</code>，圖形化編輯日期/課程/教材與作業（含 format），最後匯出檔案覆蓋即可。</p>
+
+  <div class="flex flex-wrap items-center gap-2 mb-4">
+    <input id="studentId" class="border px-2 py-1 rounded" placeholder="student（預設 ray）">
+    <button id="loadBtn" class="px-3 py-1 bg-blue-600 text-white rounded">載入</button>
+    <input type="file" id="filePicker" class="hidden" accept="application/json">
+    <button id="loadFile" class="px-3 py-1 bg-gray-200 rounded">從檔案載入</button>
+    <button id="saveFile" class="px-3 py-1 bg-emerald-600 text-white rounded">匯出 manifest.json</button>
+    <span class="text-gray-400">|</span>
+    <button id="downloadTpl" class="px-3 py-1 bg-gray-200 rounded">下載 HTML 範本</button>
+  </div>
+
+  <div id="editor" class="space-y-4"></div>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+let manifest = null;
+
+async function fetchManifest(student){
+  const url = `students/${student}/manifest.json?ts=${Date.now()}`;
+  const res = await fetch(url, {cache:'no-store'});
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  return await res.json();
+}
+function render(){
+  const el = $('#editor');
+  if(!manifest){ el.innerHTML = '<p class="text-gray-500">尚未載入 manifest。</p>'; return; }
+
+  const days = manifest.days || {};
+  const courses = manifest.courses || {};
+  const dayKeys = Object.keys(days).sort();
+
+  const courseRow = `
+    <div class="p-3 rounded border">
+      <div class="font-semibold mb-2">學生：${manifest.displayName||manifest.student}（${manifest.student}）</div>
+      <div class="mb-2">課程清單：
+        ${Object.entries(courses).map(([k,v])=>`<span class="px-2 py-0.5 rounded bg-gray-100 border mr-1">${k}（${v.label||k}）</span>`).join('') || '<span class="text-gray-400">尚無</span>'}
+      </div>
+      <div class="flex gap-2 mb-2">
+        <input id="newCourseKey" class="border px-2 py-1 rounded" placeholder="course key（如 english）">
+        <input id="newCourseLabel" class="border px-2 py-1 rounded" placeholder="顯示名稱（如 英文）">
+        <input id="newCourseColor" class="border px-2 py-1 rounded" placeholder="顏色（如 #1d4ed8）">
+        <button id="addCourse" class="px-3 py-1 bg-gray-200 rounded">新增課程</button>
+      </div>
+    </div>`;
+
+  const dayRows = dayKeys.map(d=>{
+    const map = days[d];
+    const items = Object.entries(map).map(([ck, obj])=>{
+      const mat = obj.material || {};
+      const hw  = obj.homework || {};
+      const opt = (sel, v) => sel===v ? 'selected' : '';
+      return `
+      <div class="p-3 border rounded mb-3">
+        <div class="font-medium mb-1">${ck} · ${(courses[ck]&&courses[ck].label)||ck}</div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
+          <div class="font-semibold text-blue-700">📘 教材</div>
+          <select class="border px-2 py-1 rounded" data-date="${d}" data-course="${ck}" data-slot="material" data-field="format">
+            <option ${opt(mat.format,'html')} value="html">html</option>
+            <option ${opt(mat.format,'pdf')} value="pdf">pdf</option>
+            <option ${opt(mat.format,'image')} value="image">image</option>
+            <option ${opt(mat.format,'link')} value="link">link</option>
+          </select>
+          <input class="border px-2 py-1 rounded" placeholder="URL（相對或 http）" value="${mat.url||''}" data-date="${d}" data-course="${ck}" data-slot="material" data-field="url">
+          <input class="border px-2 py-1 rounded md:col-span-3" placeholder="title（可空）" value="${obj.title||''}" data-date="${d}" data-course="${ck}" data-field="title">
+
+          <div class="font-semibold text-amber-700 mt-2">📝 作業</div>
+          <select class="border px-2 py-1 rounded" data-date="${d}" data-course="${ck}" data-slot="homework" data-field="format">
+            <option ${opt(hw.format,'html')} value="html">html</option>
+            <option ${opt(hw.format,'pdf')} value="pdf">pdf</option>
+            <option ${opt(hw.format,'image')} value="image">image</option>
+            <option ${opt(hw.format,'link')} value="link">link</option>
+          </select>
+          <input class="border px-2 py-1 rounded" placeholder="URL（相對或 http）" value="${hw.url||''}" data-date="${d}" data-course="${ck}" data-slot="homework" data-field="url">
+        </div>
+      </div>`;
+    }).join('');
+
+    return `
+    <details class="mb-3">
+      <summary class="cursor-pointer select-none p-2 bg-gray-50 rounded border">${d} · ${Object.keys(map).length} 門課</summary>
+      <div class="p-2">
+        ${items || '<div class="text-gray-500">這天尚無課程</div>'}
+        <div class="flex gap-2 mt-2">
+          <select id="addCourseSel_${d}" class="border px-2 py-1 rounded">
+            <option value="">選擇要新增的課程</option>
+            ${Object.keys(courses).map(k=>`<option value="${k}">${k}（${courses[k].label||k}）</option>`).join('')}
+          </select>
+          <button data-add="${d}" class="px-3 py-1 bg-gray-200 rounded">新增到此日</button>
+        </div>
+      </div>
+    </details>`;
+  }).join('');
+
+  el.innerHTML = courseRow + `
+    <div class="p-3 rounded border">
+      <div class="font-semibold mb-2">日期清單</div>
+      ${dayRows}
+      <div class="flex gap-2 mt-4">
+        <input id="newDate" class="border px-2 py-1 rounded" placeholder="YYYY-MM-DD">
+        <button id="addDate" class="px-3 py-1 bg-gray-200 rounded">新增日期</button>
+      </div>
+    </div>`;
+
+  $('#addCourse')?.addEventListener('click', ()=>{
+    const key = $('#newCourseKey').value.trim(); if(!key) return alert('course key 必填');
+    const label = $('#newCourseLabel').value.trim() || key;
+    const color = $('#newCourseColor').value.trim() || '#333';
+    manifest.courses = manifest.courses || {};
+    if(manifest.courses[key]) return alert('已存在相同 key');
+    manifest.courses[key] = { label, color };
+    render();
+  });
+
+  document.querySelectorAll('select[data-field],input[data-field]')?.forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      const d = inp.dataset.date, c = inp.dataset.course, slot = inp.dataset.slot, f = inp.dataset.field;
+      if (slot) {
+        manifest.days[d][c][slot] = manifest.days[d][c][slot] || {};
+        manifest.days[d][c][slot][f] = inp.value;
+      } else {
+        manifest.days[d][c][f] = inp.value;
+      }
+    });
+  });
+
+  document.querySelectorAll('button[data-add]')?.forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const d = btn.dataset.add;
+      const sel = document.getElementById('addCourseSel_'+d);
+      const key = sel.value; if(!key) return;
+      manifest.days[d] = manifest.days[d] || {};
+      if (!manifest.days[d][key]) manifest.days[d][key] = { title:'', material:{format:'html',url:''}, homework:{format:'html',url:''} };
+      render();
+    });
+  });
+
+  $('#addDate')?.addEventListener('click', ()=>{
+    const d = $('#newDate').value.trim();
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(d)) return alert('日期格式 YYYY-MM-DD');
+    manifest.days = manifest.days || {};
+    if(manifest.days[d]) return alert('此日期已存在');
+    manifest.days[d] = {};
+    render();
+  });
+}
+
+$('#loadBtn').addEventListener('click', async ()=>{
+  const student = ($('#studentId').value || 'ray').trim();
+  try { manifest = await fetchManifest(student); render(); }
+  catch(e){ alert('讀取失敗：'+e.message); }
+});
+
+$('#loadFile').addEventListener('click', ()=> $('#filePicker').click());
+$('#filePicker').addEventListener('change', async (e)=>{
+  const f = e.target.files[0]; if(!f) return;
+  const txt = await f.text();
+  try { manifest = JSON.parse(txt); render(); }
+  catch(e){ alert('JSON 解析失敗'); }
+});
+
+$('#saveFile').addEventListener('click', ()=>{
+  if(!manifest) return alert('尚未載入資料');
+  const blob = new Blob([JSON.stringify(manifest, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'manifest.json';
+  a.click(); URL.revokeObjectURL(url);
+});
+
+$('#downloadTpl').addEventListener('click', ()=>{
+  const d = new Date();
+  const iso = d.toISOString().slice(0,10);
+  const html = `<!doctype html>
+<html lang="zh-Hant">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="lesson-date" content="${iso}">
+<title>教材樣板</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<body class="bg-gray-100 p-4 sm:p-8">
+<div id="breadcrumb" class="max-w-4xl mx-auto mb-4"></div>
+<script>(function(){const p=new URLSearchParams(location.search);const student=p.get('student')||'ray';const meta=document.querySelector('meta[name="lesson-date"]')?.content?.trim();const back=meta? \'../index.html?student=\'+student+\'&date=\'+meta+\'#calendar-widget\' : \'../index.html?student=\'+student+\'#calendar-widget\';document.getElementById('breadcrumb').innerHTML = '<a href="'+back+'" class="text-blue-600 hover:underline">&larr; 返回課程日曆</a>';})();</script>
+<div class="max-w-4xl mx-auto bg-white rounded-2xl shadow p-6">
+  <h1 class="text-2xl font-bold mb-2">教材標題</h1>
+  <p class="text-gray-600 mb-6">把 AI 產的內容貼到這裡。</p>
+</div>
+</body></html>`;
+  const blob = new Blob([html], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'lesson_template.html';
+  a.click(); URL.revokeObjectURL(url);
+});
+</script>
+</body></html>
