@@ -1,0 +1,486 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>瑞瑞第一課數學</title>
+<style>body{font-family:system-ui,"Noto Sans TC",Arial,sans-serif;margin:0;background:#f6f7fb;}
+.header{background:#111827;color:#fff;padding:10px 14px;}
+.header a{color:#a7f3d0;text-decoration:none}
+.container{max-width:900px;margin:18px auto;background:#fff;border-radius:12px;padding:18px 20px;box-shadow:0 10px 30px rgba(0,0,0,.06)}</style>
+</head><body>
+<div class="header">← <a href="../../../index.html?student=ray&date=2025-08-10">返回日曆</a></div>
+<div class="container"><h1>瑞瑞第一課數學</h1><!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>互動式數學教材：負數與數線</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Neutrals -->
+    <!-- Application Structure Plan: A single-page application with four interactive/informational modules ("1. 探索正負數", "2. 玩轉數線", "3. 觀念釐清", "4. 解密絕對值") navigated by a sticky top bar. This thematic, hands-on structure is chosen over a linear text format to enhance engagement and clarify abstract concepts through direct manipulation and immediate visual feedback, which is more effective for foundational math learning. The goal is to transform passive reading into active exploration. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: Relative quantities & benchmarks -> Goal: Inform -> Viz/Presentation: Interactive Slider with a dynamic thermometer visual (HTML/CSS/JS) -> Interaction: User drags slider to see value and visual change -> Justification: Makes the abstract concept of a benchmark tangible and connects it to a familiar real-world example.
+        - Report Info: Number line and number comparison -> Goal: Organize/Compare -> Viz/Presentation: Large, interactive number line where users can place points (HTML/CSS/JS) -> Interaction: User clicks to add a point, and its value is displayed -> Justification: Promotes active learning and spatial understanding of number placement and order over passive observation.
+        - Report Info: Confusing concepts (Opposite Numbers, Value vs. Absolute Value) -> Goal: Clarify/Differentiate -> Viz/Presentation: A dedicated text-based section with clear headings and highlighted keywords -> Interaction: Reading and comprehension -> Justification: Directly addresses common student misconceptions before they interact with the final module, improving learning outcomes.
+        - Report Info: Value vs. Absolute Value -> Goal: Compare/Differentiate -> Viz/Presentation: A dual-bar chart (Chart.js) with a restructured data model. Color now consistently represents the entity (Number A or Number B), while the x-axis categorizes the concept (Value vs. Absolute Value). -> Interaction: User inputs two numbers, and the chart and number line immediately update -> Justification: This revised structure provides a powerful, direct visual comparison that highlights the core difference between a number's value and its absolute value without any color ambiguity.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f8fafc; /* slate-50 */
+            color: #1e293b; /* slate-800 */
+        }
+        html {
+            scroll-padding-top: 5rem; /* Offset for sticky header */
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 40vh;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .nav-link {
+            transition: color 0.3s, border-color 0.3s;
+        }
+        .interactive-number-line {
+            position: relative;
+            height: 50px;
+            background-color: #e2e8f0; /* slate-200 */
+            border-radius: 8px;
+            cursor: crosshair;
+        }
+        .interactive-number-line .line {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
+            height: 2px;
+            background-color: #475569; /* slate-600 */
+        }
+        .interactive-number-line .tick {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 2px;
+            height: 10px;
+            background-color: #475569; /* slate-600 */
+        }
+        .interactive-number-line .tick-label {
+            position: absolute;
+            top: 28px;
+            transform: translateX(-50%);
+            font-size: 0.8rem;
+            color: #334155; /* slate-700 */
+        }
+        .interactive-number-line .point {
+            position: absolute;
+            top: 50%;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 0.2s;
+        }
+        .interactive-number-line .point-label {
+            position: absolute;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body class="bg-slate-50">
+
+    <header class="bg-white/80 backdrop-blur-lg shadow-sm sticky top-0 z-50">
+        <nav class="container mx-auto px-4">
+            <div class="flex items-center justify-between h-16">
+                <h1 class="text-xl md:text-2xl font-bold text-sky-700">國中數學銜接教材</h1>
+                <div class="hidden md:flex items-center space-x-6">
+                    <a href="#module1" class="nav-link text-slate-600 hover:text-sky-600 border-b-2 border-transparent hover:border-sky-600 pb-1">1. 探索正負數</a>
+                    <a href="#module2" class="nav-link text-slate-600 hover:text-sky-600 border-b-2 border-transparent hover:border-sky-600 pb-1">2. 玩轉數線</a>
+                    <a href="#concepts" class="nav-link text-slate-600 hover:text-sky-600 border-b-2 border-transparent hover:border-sky-600 pb-1">3. 觀念釐清</a>
+                    <a href="#module3" class="nav-link text-slate-600 hover:text-sky-600 border-b-2 border-transparent hover:border-sky-600 pb-1">4. 解密絕對值</a>
+                </div>
+                <div class="md:hidden">
+                    <select id="mobile-nav" class="bg-slate-100 border border-slate-300 rounded-md p-2 text-slate-700">
+                        <option value="#module1">1. 探索正負數</option>
+                        <option value="#module2">2. 玩轉數線</option>
+                        <option value="#concepts">3. 觀念釐清</option>
+                        <option value="#module3">4. 解密絕對值</option>
+                    </select>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto p-4 md:p-8">
+        <div class="text-center mb-12">
+            <h2 class="text-4xl font-bold text-slate-800 mb-2">1-1 負數與數線</h2>
+            <p class="text-lg text-slate-600">透過互動操作，建立穩固的數學基礎觀念。</p>
+        </div>
+
+        <!-- Module 1: Positive & Negative Numbers -->
+        <section id="module1" class="mb-16 p-6 bg-white rounded-xl shadow-lg">
+            <h3 class="text-2xl font-bold mb-1 text-sky-800">1. 探索正負數</h3>
+            <p class="text-slate-600 mb-6">生活中充滿了相對的量。我們用一個「基準點 (0)」來區分它們。試著拖動下方的滑桿，觀察溫度計和海拔高度如何用正負數表示。</p>
+            <div class="grid md:grid-cols-2 gap-8 items-center">
+                <div class="flex flex-col items-center">
+                    <div class="w-full max-w-xs">
+                         <label for="value-slider" class="block text-center text-slate-700 mb-2">拖動滑桿改變數值</label>
+                        <input id="value-slider" type="range" min="-50" max="50" value="20" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                        <div class="flex justify-between text-xs text-slate-500 px-1 mt-1">
+                            <span>-50</span>
+                            <span>0</span>
+                            <span>+50</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-around items-end h-64">
+                    <!-- Thermometer -->
+                    <div class="text-center">
+                        <p class="font-semibold mb-2">溫度計</p>
+                        <div class="w-12 h-56 bg-slate-200 rounded-full flex justify-center items-end p-1.5 relative">
+                            <div id="mercury" class="w-full bg-red-500 rounded-b-full transition-all duration-200" style="height: 70%;"></div>
+                             <div class="absolute top-1/2 left-full ml-2 w-px h-px">
+                                <span class="absolute -translate-y-1/2 text-xs text-slate-500 whitespace-nowrap">0°C</span>
+                            </div>
+                        </div>
+                        <p id="temp-display" class="mt-2 text-lg font-bold text-red-600">+20°C</p>
+                    </div>
+                    <!-- Altitude -->
+                    <div class="text-center">
+                        <p class="font-semibold mb-2">海拔高度</p>
+                        <div class="w-24 h-56 bg-sky-100 relative overflow-hidden rounded-md">
+                            <div class="absolute bottom-0 w-full h-1/2 bg-cyan-600"></div>
+                            <div id="altitude-marker" class="absolute left-1/2 w-8 h-8 -translate-x-1/2 transition-all duration-200" style="bottom: 70%;">
+                                <span class="text-3xl">⛰️</span>
+                            </div>
+                            <div class="absolute top-1/2 left-0 w-full h-0.5 bg-sky-800/50">
+                                <span class="absolute top-0 left-full ml-2 text-xs text-slate-500 whitespace-nowrap">海平面 0m</span>
+                            </div>
+                        </div>
+                        <p id="altitude-display" class="mt-2 text-lg font-bold text-sky-700">+2000m</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Module 2: Number Line -->
+        <section id="module2" class="mb-16 p-6 bg-white rounded-xl shadow-lg">
+            <h3 class="text-2xl font-bold mb-1 text-sky-800">2. 玩轉數線</h3>
+            <p class="text-slate-600 mb-6">數線是數字的家。在下面的數線上點擊，標示出任意數字的位置。愈右邊的點，代表的數愈大。</p>
+            <div id="interactive-line-1" class="interactive-number-line mb-4"></div>
+            <div class="text-center">
+                <button id="clear-points-btn" class="mt-4 bg-slate-500 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">清除所有標示點</button>
+            </div>
+        </section>
+        
+        <!-- NEW Module: Key Concepts -->
+        <section id="concepts" class="mb-16 p-6 bg-white rounded-xl shadow-lg">
+            <h3 class="text-2xl font-bold mb-4 text-sky-800">3. 觀念釐清：別再搞混了！</h3>
+            <div class="space-y-6 text-base">
+                <div>
+                    <h4 class="font-bold text-lg text-amber-700"># 相反數是什麼？</h4>
+                    <p class="text-slate-700 mt-2 leading-relaxed">
+                        在數線上，站在原點(0)的兩側，而且和原點<strong class="text-orange-600">「距離相等」</strong>的兩個數，就互為相反數。
+                        <br>例如：<code class="bg-slate-200 px-1 rounded">-5</code> 的相反數是 <code class="bg-slate-200 px-1 rounded">5</code>。它們到0的距離都是5。
+                        <br><strong>關鍵特性：</strong> 互為相反數的兩個數，絕對值相等。
+                    </p>
+                </div>
+                <div>
+                    <h4 class="font-bold text-lg text-amber-700"># 數值 vs. 絕對值：哪裡不一樣？</h4>
+                    <p class="text-slate-700 mt-2 leading-relaxed">
+                        這是最容易混淆的地方！記得它們回答的問題不同：
+                        <br>• <strong>數值</strong>：代表在數線上的<strong class="text-blue-600">「位置」</strong>。它有方向性（正或負）。問的是：「它在哪裡？」
+                        <br>• <strong>絕對值</strong>：代表與原點0的<strong class="text-orange-600">「距離」</strong>。它永遠是正數或0。問的是：「它離起點多遠？」
+                    </p>
+                </div>
+                <div>
+                    <h4 class="font-bold text-lg text-amber-700"># 負數比大小的陷阱</h4>
+                    <p class="text-slate-700 mt-2 leading-relaxed">
+                        很多人會覺得 -10 比 -2 大，因為 10 比 2 大。這是錯的！
+                        <br><strong>唯一準則：</strong> 在數線上，<strong class="text-red-600">愈右邊的數愈大</strong>。
+                        <br>因為 -2 在 -10 的右邊，所以 <code class="bg-slate-200 px-1 rounded">-2 > -10</code>。可以想像成：氣溫零下2度比零下10度要溫暖一些！
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Module 3: Absolute Value -->
+        <section id="module3" class="p-6 bg-white rounded-xl shadow-lg">
+            <h3 class="text-2xl font-bold mb-1 text-sky-800">4. 解密絕對值</h3>
+            <p class="text-slate-600 mb-4">絕對值的核心意義是「與原點 (0) 的距離」，所以絕對值永遠不會是負數。輸入兩個數字，觀察它們的「數值」和「絕對值」有何不同。</p>
+            <div class="grid md:grid-cols-2 gap-6 mb-6">
+                <div>
+                    <label for="numA" class="block text-sm font-medium text-slate-700">數字 A</label>
+                    <input type="number" id="numA" value="-5" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 sm:text-sm p-2">
+                </div>
+                <div>
+                    <label for="numB" class="block text-sm font-medium text-slate-700">數字 B</label>
+                    <input type="number" id="numB" value="3" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 sm:text-sm p-2">
+                </div>
+            </div>
+            <div id="interactive-line-2" class="interactive-number-line mb-8"></div>
+            <p class="text-slate-600 mb-4 text-center">下方的圖表清楚地比較了兩數的「數值大小」與「絕對值大小（與0的距離）」。</p>
+            <div class="chart-container">
+                <canvas id="abs-chart"></canvas>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // --- Navigation ---
+            const setupNavigation = () => {
+                document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                    anchor.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        const targetElement = document.querySelector(this.getAttribute('href'));
+                        if(targetElement) {
+                            targetElement.scrollIntoView({
+                                behavior: 'smooth'
+                            });
+                        }
+                    });
+                });
+                const mobileNav = document.getElementById('mobile-nav');
+                mobileNav.addEventListener('change', (e) => {
+                    const targetElement = document.querySelector(e.target.value);
+                    if(targetElement) {
+                        targetElement.scrollIntoView({
+                           behavior: 'smooth'
+                       });
+                    }
+                });
+            };
+
+            // --- Module 1: Positive/Negative Numbers ---
+            const setupModule1 = () => {
+                const slider = document.getElementById('value-slider');
+                const mercury = document.getElementById('mercury');
+                const tempDisplay = document.getElementById('temp-display');
+                const altitudeMarker = document.getElementById('altitude-marker');
+                const altitudeDisplay = document.getElementById('altitude-display');
+
+                const updateVisuals = (value) => {
+                    const percentage = (parseInt(value) + 50);
+                    
+                    mercury.style.height = `${percentage}%`;
+                    tempDisplay.textContent = `${value >= 0 ? '+' : ''}${value}°C`;
+                    mercury.style.backgroundColor = value >= 0 ? '#ef4444' : '#3b82f6';
+                    tempDisplay.style.color = value >= 0 ? '#dc2626' : '#2563eb';
+
+                    altitudeMarker.style.bottom = `${percentage}%`;
+                    const altitude = value * 100;
+                    altitudeDisplay.textContent = `${altitude >= 0 ? '+' : ''}${altitude}m`;
+                    altitudeDisplay.style.color = altitude >= 0 ? '#0369a1' : '#0891b2';
+                };
+
+                slider.addEventListener('input', (e) => updateVisuals(e.target.value));
+                updateVisuals(slider.value);
+            };
+
+            // --- Interactive Number Line Factory ---
+            const createInteractiveNumberLine = (containerId, range = 10) => {
+                const container = document.getElementById(containerId);
+                if (!container) return;
+
+                container.innerHTML = '<div class="line"></div>';
+                const ticks = range * 2;
+                for (let i = 0; i <= ticks; i++) {
+                    const value = i - range;
+                    const tickEl = document.createElement('div');
+                    tickEl.className = 'tick';
+                    const leftPos = (i / ticks) * 100;
+                    tickEl.style.left = `${leftPos}%`;
+                    
+                    if (value % 5 === 0 || range <= 5) {
+                        tickEl.style.height = '20px';
+                        const labelEl = document.createElement('div');
+                        labelEl.className = 'tick-label';
+                        labelEl.textContent = value;
+                        labelEl.style.left = `${leftPos}%`;
+                        container.appendChild(labelEl);
+                    }
+                    container.appendChild(tickEl);
+                }
+
+                const addPoint = (value, label, color = 'bg-sky-500', id = '') => {
+                    if (value < -range || value > range) return;
+                    
+                    const existingPoint = id ? document.getElementById(id) : null;
+                    if(existingPoint) existingPoint.remove();
+
+                    const pointEl = document.createElement('div');
+                    pointEl.className = `point ${color}`;
+                    if(id) pointEl.id = id;
+                    
+                    const leftPos = ((value + range) / (range * 2)) * 100;
+                    pointEl.style.left = `${leftPos}%`;
+
+                    const labelEl = document.createElement('div');
+                    labelEl.className = `point-label text-white ${color}`;
+                    labelEl.textContent = label;
+                    pointEl.appendChild(labelEl);
+                    
+                    container.appendChild(pointEl);
+                };
+
+                const addDistanceLine = (value, color = 'bg-orange-500/50', id = '') => {
+                     if (value < -range || value > range) return;
+
+                    const existingLine = id ? document.getElementById(id) : null;
+                    if(existingLine) existingLine.remove();
+
+                    const distLine = document.createElement('div');
+                    if(id) distLine.id = id;
+                    distLine.style.position = 'absolute';
+                    distLine.style.top = '10px';
+                    distLine.style.height = '5px';
+                    distLine.style.backgroundColor = color;
+                    distLine.className = 'rounded-full';
+
+                    const absValue = Math.abs(value);
+                    const width = (absValue / (range * 2)) * 100;
+                    distLine.style.width = `${width}%`;
+
+                    if (value > 0) {
+                        distLine.style.left = '50%';
+                    } else {
+                        const leftPos = ((value + range) / (range * 2)) * 100;
+                        distLine.style.left = `${leftPos}%`;
+                    }
+                    container.appendChild(distLine);
+                };
+                
+                const clearPoints = () => {
+                    container.querySelectorAll('.point').forEach(p => p.remove());
+                    container.querySelectorAll('[id^="dist-"]').forEach(d => d.remove());
+                };
+
+                return { container, addPoint, addDistanceLine, clearPoints, range };
+            };
+
+            // --- Module 2: Number Line ---
+            const setupModule2 = () => {
+                const lineInstance = createInteractiveNumberLine('interactive-line-1', 10);
+                lineInstance.container.addEventListener('click', (e) => {
+                    const rect = e.target.closest('.interactive-number-line').getBoundingClientRect();
+                    const clickX = e.clientX - rect.left;
+                    const percentage = clickX / rect.width;
+                    const value = (percentage * (lineInstance.range * 2)) - lineInstance.range;
+                    const roundedValue = Math.round(value * 10) / 10;
+                    lineInstance.addPoint(roundedValue, roundedValue.toString(), 'bg-teal-500');
+                });
+                document.getElementById('clear-points-btn').addEventListener('click', lineInstance.clearPoints);
+            };
+
+            // --- Module 3: Absolute Value ---
+            const setupModule3 = () => {
+                const numAInput = document.getElementById('numA');
+                const numBInput = document.getElementById('numB');
+                const lineInstance = createInteractiveNumberLine('interactive-line-2', 10);
+
+                const ctx = document.getElementById('abs-chart').getContext('2d');
+                // UPDATED CHART CONFIGURATION
+                const absChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['數值', '絕對值'], // X-axis now represents the concept
+                        datasets: [
+                            {
+                                label: '數字 A', // Series 1 is for Number A
+                                data: [0, 0],
+                                backgroundColor: 'rgba(59, 130, 246, 0.6)', // Blue for A
+                                borderColor: 'rgba(59, 130, 246, 1)',
+                                borderWidth: 1
+                            },
+                            {
+                                label: '數字 B', // Series 2 is for Number B
+                                data: [0, 0],
+                                backgroundColor: 'rgba(249, 115, 22, 0.6)', // Orange for B
+                                borderColor: 'rgba(249, 115, 22, 1)',
+                                borderWidth: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: { display: true, text: '大小' }
+                            }
+                        },
+                        plugins: {
+                            legend: { position: 'top' },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed.y !== null) {
+                                            label += context.parsed.y;
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+
+                const updateAbsModule = () => {
+                    const valA = parseFloat(numAInput.value) || 0;
+                    const valB = parseFloat(numBInput.value) || 0;
+
+                    // Number line colors remain consistent: Blue for A, Orange for B
+                    lineInstance.clearPoints();
+                    lineInstance.addPoint(valA, `A: ${valA}`, 'bg-blue-500', 'point-a');
+                    lineInstance.addPoint(valB, `B: ${valB}`, 'bg-orange-500', 'point-b');
+                    lineInstance.addDistanceLine(valA, '#3b82f680', 'dist-a'); // Light Blue for A's distance
+                    lineInstance.addDistanceLine(valB, '#f9731680', 'dist-b'); // Light Orange for B's distance
+
+                    // UPDATED CHART DATA MAPPING
+                    // Dataset 0 (Number A) gets [value, absolute_value]
+                    absChart.data.datasets[0].data = [valA, Math.abs(valA)];
+                    // Dataset 1 (Number B) gets [value, absolute_value]
+                    absChart.data.datasets[1].data = [valB, Math.abs(valB)];
+                    absChart.update();
+                };
+
+                numAInput.addEventListener('input', updateAbsModule);
+                numBInput.addEventListener('input', updateAbsModule);
+                updateAbsModule();
+            };
+
+            // Initialize all modules
+            setupNavigation();
+            setupModule1();
+            setupModule2();
+            setupModule3();
+        });
+    </script>
+</body>
+</html></div>
+</body></html>

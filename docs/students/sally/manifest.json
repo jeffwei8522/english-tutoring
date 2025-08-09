@@ -1,0 +1,29 @@
+{
+  "version": 3,
+  "student": "sally",
+  "displayName": "sally",
+  "courses": {
+    "english": {
+      "label": "英文"
+    },
+    "math": {
+      "label": "數學"
+    }
+  },
+  "types": {
+    "material": "教材",
+    "homework": "作業"
+  },
+  "days": {
+    "2025-08-09": {
+      "english": {
+        "material": [
+          {
+            "title": "主題：媒體素養 (Media Literacy)",
+            "path": "materials/sally/english/2025-08-09_主題：媒體素養_(media_literacy).html"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,7 +1,7 @@
 {
-  "version": 1,
+  "version": 2,
   "student": "ray",
-  "displayName": "Ray",
+  "displayName": "Ray Chen",
   "courses": {
     "english": {
       "label": "英文",
@@ -13,7 +13,27 @@
     }
   },
   "days": {
-    "2025-08-08": {},
-    "2025-08-01": {}
+    "2025-08-10": {
+      "english": {
+        "material": [
+          {
+            "title": "瑞瑞第一課",
+            "path": "materials/ray/english/2025-08-10_瑞瑞第一課.html"
+          }
+        ]
+      },
+      "math": {
+        "material": [
+          {
+            "title": "瑞瑞第一課數學",
+            "path": "materials/ray/math/2025-08-10_瑞瑞第一課數學.html"
+          }
+        ]
+      }
+    }
+  },
+  "types": {
+    "material": "教材",
+    "homework": "作業"
   }
 }

@@ -1,157 +1,228 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>課程日曆</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet"/>
-  <style>
-    body { font-family: 'Noto Sans TC', sans-serif; }
-    .today { background-color: #3b82f6; color: white; border-radius: 9999px; }
-    .has-material:hover { background-color: #dbeafe; border-radius: 9999px; }
-    .dot { height: 6px; width: 6px; background-color: #16a34a; border-radius: 50%;
-           position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); }
-  </style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>課程日曆</title>
+<style>
+  body{font-family:system-ui,"Noto Sans TC",Arial,sans-serif;background:#f3f5f7;margin:0;}
+  .app{max-width:1024px;margin:40px auto;background:#fff;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.06);padding:24px 28px;position:relative;}
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .nav{display:flex;gap:10px;align-items:center}
+  button.navbtn{border:1px solid #d1d5db;background:#fff;border-radius:8px;padding:6px 10px;cursor:pointer}
+  .links a{margin-left:8px;color:#2563eb;text-decoration:none}
+  .msg{padding:12px 14px;border-radius:8px;margin:8px 0;display:none}
+  .msg.err{background:#fde2e0;color:#9b1c1c}
+  .calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:8px;}
+  .dow{font-weight:700;color:#5b6770;text-align:center;}
+  .cell{background:#f7fafc;min-height:74px;border-radius:10px;padding:8px;position:relative}
+  .cell .day{font-weight:700;color:#3a4a5b;}
+  .cell.has .dot{position:absolute;right:10px;top:10px;width:8px;height:8px;background:#34c759;border-radius:50%;}
+  .cell.today{outline:2px solid #2f80ed;background:#eef6ff;}
+  .popover{position:absolute;z-index:50;min-width:280px;max-width:360px;background:#fff;border-radius:12px;box-shadow:0 12px 28px rgba(0,0,0,.15);padding:12px;display:none}
+  .popover .row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .card{background:#f7fafc;border-radius:10px;padding:10px 12px;margin:8px 0;}
+  a{color:#2563eb;text-decoration:none} a:hover{text-decoration:underline}
+</style>
 </head>
-<body class="bg-gray-100 p-4 sm:p-8">
-
-  <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-lg p-6 sm:p-10">
-    <header class="text-center mb-12">
-      <h1 class="text-3xl sm:text-4xl font-bold text-blue-800 mb-2">課程日曆 📅</h1>
-      <p class="text-lg text-gray-600">使用 ?student=ray 指定學生；有資料的日期會有綠點</p>
-    </header>
-
-    <main>
-      <section id="calendar-widget">
-        <h2 class="text-2xl font-bold text-blue-700 border-b-2 border-blue-200 pb-2 mb-6">課程日曆</h2>
-        <div class="bg-gray-50 p-4 sm:p-6 rounded-lg shadow-inner">
-          <div class="flex items-center justify-between mb-4">
-            <button id="prev-month" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-700 transition-colors">◀</button>
-            <h3 id="month-year" class="text-xl font-bold text-gray-800 w-40 text-center"></h3>
-            <button id="next-month" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-700 transition-colors">▶</button>
-          </div>
-
-          <div class="grid grid-cols-7 gap-1 text-center text-sm font-medium text-gray-600 mb-2">
-            <div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div>
-          </div>
-          <div id="calendar-grid" class="grid grid-cols-7 gap-1"></div>
-        </div>
-      </section>
-    </main>
-
-    <footer class="text-center mt-16 pt-8 border-t border-gray-200">
-      <p class="text-gray-500">Powered by GitHub Pages · Admin：<a href="admin.html" class="text-blue-600 underline">admin.html</a></p>
-    </footer>
+<body>
+<div class="app" id="app">
+  <div class="topbar">
+    <div class="nav">
+      <button class="navbtn" id="btnPrev">◀</button>
+      <div id="monthLabel" style="font-weight:700"></div>
+      <button class="navbtn" id="btnNext">▶</button>
+    </div>
+    <div class="links">
+      <span id="studentName" style="font-weight:700;margin-right:8px"></span>
+      <span id="adminLink"></span>
+    </div>
   </div>
 
-  <script>
-    document.addEventListener('DOMContentLoaded', async function () {
-      const calendarGrid = document.getElementById('calendar-grid');
-      const monthYearDisplay = document.getElementById('month-year');
-      const prevMonthBtn = document.getElementById('prev-month');
-      const nextMonthBtn = document.getElementById('next-month');
+  <div id="err" class="msg err"></div>
+  <div id="calendar"></div>
 
-      const params = new URLSearchParams(location.search);
-      const student = params.get('student') || 'ray';
-      const qDate = params.get('date');
-      let currentDate = qDate && !isNaN(Date.parse(qDate)) ? new Date(qDate) : new Date();
-      let selectedDate = qDate || null;
+  <div id="popover" class="popover">
+    <div class="row">
+      <label>課程：</label><select id="pCourse"></select>
+      <label>類型：</label><select id="pType"></select>
+    </div>
+    <div id="pList"></div>
+  </div>
+</div>
 
-      let manifest = { days: {}, courses: {} };
-      try {
-        const res = await fetch(`students/${student}/manifest.json?ts=${Date.now()}`, { cache: 'no-store' });
-        if (res.ok) manifest = await res.json();
-        else console.warn('讀 manifest 失敗：', res.status);
-      } catch (e) { console.warn('讀 manifest 錯誤：', e); }
+<script>
+const q=(s,e=document)=>e.querySelector(s);
+const params=new URLSearchParams(location.search);
+let currentStudent=params.get('student')||null;
+let currentDate=params.get('date')||null;
+let currentCourse=params.get('course')||null;
+let currentType=params.get('type')||null;
 
-      function hasAnyCourse(dateStr){ return Boolean(manifest.days && manifest.days[dateStr]); }
+const isLocal=()=>['127.0.0.1','localhost'].includes(location.hostname);
+async function getJSON(path){
+  if(isLocal()){
+    try{ const r=await fetch(`/api/data/${path}?ts=${Date.now()}`,{cache:'no-store'}); if(r.ok) return await r.json(); }catch(e){}
+  }
+  const r2=await fetch(`${path}?ts=${Date.now()}`,{cache:'no-store'});
+  if(!r2.ok) throw new Error('HTTP '+r2.status);
+  return await r2.json();
+}
 
-      function openCoursePicker(dateStr, coursesMap, courseMeta) {
-        const items = Object.entries(coursesMap).map(([key, obj])=>{
-          const label = (courseMeta[key] && courseMeta[key].label) || key;
-          const m = obj.material ? `<a class="block px-4 py-2 hover:bg-gray-100 rounded" href="${obj.material.url}">📘 ${label}：教材</a>` : '';
-          const h = obj.homework ? `<a class="block px-4 py-2 hover:bg-gray-100 rounded" href="${obj.homework.url}" target="${obj.homework.format==='link'?'_blank':'_self'}">📝 ${label}：作業</a>` : '';
-          return m + h;
-        }).join('');
-        const wrap = document.createElement('div');
-        wrap.className = 'fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50';
-        wrap.innerHTML = `
-          <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-4">
-            <div class="flex items-center justify-between mb-2">
-              <h3 class="text-lg font-bold">選擇課程｜${dateStr}</h3>
-              <button class="px-2 py-1 text-gray-500 hover:bg-gray-100 rounded" id="close-picker">✕</button>
-            </div>
-            <div class="space-y-2">${items || '<div class="text-gray-500">沒有可用資料</div>'}</div>
-          </div>`;
-        document.body.appendChild(wrap);
-        wrap.querySelector('#close-picker').onclick = () => wrap.remove();
-        wrap.addEventListener('click', (e)=>{ if(e.target===wrap) wrap.remove(); });
-      }
+let roster={students:[]}, manifest=null;
+let view = (()=>{
+  const d = currentDate ? new Date(currentDate) : new Date();
+  return {y: d.getFullYear(), m: d.getMonth()};
+})();
+const fmtYMD=(d)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const base=(p)=>p.split('/').pop();
+function niceTitle(item){
+  if(item.title && item.title.trim()) return item.title.trim();
+  let name=base(item.path||'').replace(/\.[^.]+$/,'').replace(/^\d{4}-\d{2}-\d{2}_?/, '');
+  return name || '教材';
+}
+function setErr(m){const el=q('#err'); if(m){el.textContent=m; el.style.display='block';} else el.style.display='none';}
 
-      function renderCalendar() {
-        const year = currentDate.getFullYear();
-        const month = currentDate.getMonth(); // 0-11
-        const today = new Date();
+function dateHasAny(dayObj){
+  if(!dayObj) return false;
+  return Object.values(dayObj).some(courseObj=>{
+    if(!courseObj) return false;
+    return Object.values(courseObj).some(arr=>Array.isArray(arr)&&arr.length>0);
+  });
+}
 
-        monthYearDisplay.textContent = `${year}年 ${month + 1}月`;
-        calendarGrid.innerHTML = '';
+function closePopover(){
+  const pop = q('#popover');
+  if (pop) pop.style.display = 'none';
+}
 
-        const firstDayOfMonth = new Date(year, month, 1).getDay(); // 0=週日
-        const lastDateOfMonth = new Date(year, month + 1, 0).getDate();
-        const lastDateOfPrevMonth = new Date(year, month, 0).getDate();
+function renderCalendar(){
+  closePopover();  // 先把任何舊的 popover 收掉
+  const container=q('#calendar'); container.innerHTML='';
+  const y=view.y, m=view.m;
+  q('#monthLabel').textContent = `${y} / ${String(m+1).padStart(2,'0')}`;
 
-        for (let i = firstDayOfMonth; i > 0; i--) {
-          const day = lastDateOfPrevMonth - i + 1;
-          calendarGrid.innerHTML += `<div class="p-2 text-gray-300">${day}</div>`;
-        }
+  const first=new Date(y,m,1), start=first.getDay(), last=new Date(y,m+1,0), days=last.getDate();
+  const grid=document.createElement('div'); grid.className='calendar';
 
-        for (let i = 1; i <= lastDateOfMonth; i++) {
-          const dayCell = document.createElement('div');
-          dayCell.className = 'p-2 relative flex justify-center items-center cursor-pointer';
+  ["日","一","二","三","四","五","六"].forEach(d=>{
+    const el=document.createElement('div'); el.className='dow'; el.textContent=d; grid.appendChild(el);
+  });
+  for(let i=0;i<start;i++) grid.appendChild(document.createElement('div'));
 
-          const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+  const daysMap=manifest?.days||{};
+  for(let day=1; day<=days; day++){
+    const d=new Date(y,m,day), k=fmtYMD(d), cell=document.createElement('div'); cell.className='cell';
+    const has = dateHasAny(daysMap[k]);
+    if(has){
+      cell.classList.add('has');
+      const dot=document.createElement('span'); dot.className='dot'; cell.appendChild(dot);
+      cell.style.cursor='pointer';
+      cell.onclick=()=>openPopover(k, cell);
+    }
+    const todayStr=fmtYMD(new Date());
+    if(k===todayStr) cell.classList.add('today');
 
-          let content;
-          if (hasAnyCourse(dateStr)) {
-            dayCell.classList.add('has-material');
-            content = document.createElement('a');
-            content.innerHTML = `${i}<span class="dot"></span>`;
-            content.className = 'w-full h-full flex justify-center items-center';
-            content.addEventListener('click', (ev)=>{
-              ev.preventDefault();
-              const courses = manifest.days[dateStr];
-              const keys = Object.keys(courses||{});
-              if (keys.length===1) {
-                const c = courses[keys[0]];
-                const target = c.material ? c.material.url : (c.homework ? c.homework.url : null);
-                if (target) location.href = target;
-              } else {
-                openCoursePicker(dateStr, courses, manifest.courses||{});
-              }
-            });
-          } else {
-            content = document.createElement('span');
-            content.textContent = i;
-          }
+    const dayEl=document.createElement('div'); dayEl.className='day'; dayEl.textContent=day; cell.appendChild(dayEl);
+    grid.appendChild(cell);
+  }
+  container.appendChild(grid);
+}
 
-          const todayY = today.getFullYear(), todayM = today.getMonth(), todayD = today.getDate();
-          if (year === todayY && month === todayM && i === todayD) (content.tagName === 'A' ? content : dayCell).classList.add('today');
-
-          if (selectedDate && dateStr === selectedDate) dayCell.classList.add('ring-2','ring-blue-500','rounded-full');
-
-          dayCell.appendChild(content);
-          calendarGrid.appendChild(dayCell);
-        }
-      }
-
-      prevMonthBtn.addEventListener('click', ()=>{ currentDate.setMonth(currentDate.getMonth()-1); renderCalendar(); });
-      nextMonthBtn.addEventListener('click', ()=>{ currentDate.setMonth(currentDate.getMonth()+1); renderCalendar(); });
-
-      renderCalendar();
+function combosFor(dateKey){
+  const day=manifest?.days?.[dateKey]||{};
+  const combos=[];
+  Object.keys(day).forEach(c=>{
+    Object.keys(day[c]||{}).forEach(t=>{
+      const items=(day[c][t]||[]);
+      if(items.length) combos.push({course:c,type:t,items});
     });
-  </script>
+  });
+  return combos;
+}
+function renderPopoverList(dateKey, courseKey, typeKey){
+  const wrap=q('#pList'); wrap.innerHTML='';
+  const arr=(((manifest.days?.[dateKey]||{})[courseKey]||{})[typeKey])||[];
+  if(!arr.length){ wrap.innerHTML='<div class="card">這個組合目前沒有內容</div>'; return; }
+  arr.forEach(it=>{
+    const card=document.createElement('div'); card.className='card';
+    const a=document.createElement('a'); a.href=it.path;   /* 相對路徑，避免 / 造成 404 */
+    a.textContent=niceTitle(it);
+    card.appendChild(a); wrap.appendChild(card);
+  });
+}
+function openPopover(dateKey, anchorCell){
+  currentDate=dateKey;
+  const u=new URL(location.href); u.searchParams.set('date',dateKey); history.replaceState({},'',u);
+
+  const combos=combosFor(dateKey);
+  if(!combos.length) return;
+
+  const pop=q('#popover'); const app=q('#app');
+  const csel=q('#pCourse'), tsel=q('#pType');
+  csel.innerHTML=''; tsel.innerHTML='';
+  const courses=[...new Set(combos.map(x=>x.course))];
+  const types=[...new Set(combos.map(x=>x.type))];
+  courses.forEach(c=>{const o=document.createElement('option'); o.value=c; o.textContent=manifest.courses?.[c]?.label||c; csel.appendChild(o);});
+  types.forEach(t=>{const o=document.createElement('option'); o.value=t; o.textContent=manifest.types?.[t]||t; tsel.appendChild(o);});
+  const ck = (currentCourse && courses.includes(currentCourse)) ? currentCourse : courses[0];
+  const tk = (currentType && types.includes(currentType)) ? currentType : types[0];
+  csel.value=ck; tsel.value=tk;
+  renderPopoverList(dateKey, ck, tk);
+  csel.onchange=()=>{ currentCourse=csel.value; renderPopoverList(dateKey, csel.value, tsel.value); syncURL(); };
+  tsel.onchange=()=>{ currentType=tsel.value; renderPopoverList(dateKey, csel.value, tsel.value); syncURL(); };
+
+  const ar=anchorCell.getBoundingClientRect();
+  const pr=app.getBoundingClientRect();
+  pop.style.display='block';
+  pop.style.left = (ar.right - pr.left + 10) + 'px';
+  pop.style.top  = (ar.top - pr.top + window.scrollY - 6) + 'px';
+  const popRect=pop.getBoundingClientRect();
+  if(popRect.right > window.innerWidth - 12){
+    pop.style.left = (ar.left - pr.left - popRect.width - 10) + 'px';
+  }
+  document.addEventListener('click', onDocClick);
+  function onDocClick(e){ if(pop.contains(e.target)||anchorCell.contains(e.target)) return; pop.style.display='none'; document.removeEventListener('click', onDocClick); }
+  function syncURL(){
+    const u=new URL(location.href);
+    u.searchParams.set('date', dateKey);
+    u.searchParams.set('course', csel.value);
+    u.searchParams.set('type',   tsel.value);
+    history.replaceState({},'',u);
+  }
+}
+
+async function loadAll(){
+  try{
+    roster = await getJSON('roster.json');
+
+    if (!currentStudent) {
+      if (isLocal()) {
+        // 本機開發可用第一個學生當預設
+        currentStudent = roster.students?.[0]?.id || null;
+      } else {
+        // 線上一定要用專屬連結（含 ?student=）
+        setErr('請使用老師提供的專屬連結開啟本頁。');
+        return; // 不載入任何資料
+      }
+    }
+
+    const stu = (roster.students||[]).find(s=>s.id===currentStudent);
+    q('#studentName').textContent = stu?.name ? `學生：${stu.name}` : `學生：${currentStudent||''}`;
+
+    if (isLocal()) q('#adminLink').innerHTML = '<a href="admin.html">後台</a>';
+
+    manifest = await getJSON(`students/${currentStudent}/manifest.json`);
+    renderCalendar();
+  } catch(e){
+    console.error(e);
+    setErr('讀取資料失敗：請檢查 docs/roster.json 與 docs/students/<id>/manifest.json 路徑/格式。');
+  }
+}
+
+q('#btnPrev').onclick=()=>{ if(--view.m<0){view.m=11; view.y--;} renderCalendar(); };
+q('#btnNext').onclick=()=>{ if(++view.m>11){view.m=0; view.y++;} renderCalendar(); };
+loadAll();
+</script>
 </body>
 </html>

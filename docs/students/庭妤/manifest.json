@@ -1,0 +1,29 @@
+{
+  "version": 3,
+  "student": "庭妤",
+  "displayName": "庭妤",
+  "courses": {
+    "english": {
+      "label": "英文"
+    },
+    "math": {
+      "label": "數學"
+    }
+  },
+  "types": {
+    "material": "教材",
+    "homework": "作業"
+  },
+  "days": {
+    "2025-08-09": {
+      "english": {
+        "material": [
+          {
+            "title": "高三學測英文 - 主題探討：媒體素養",
+            "path": "materials/庭妤/english/2025-08-09_高三學測英文_-_主題探討：媒體素養.html"
+          }
+        ]
+      }
+    }
+  }
+}

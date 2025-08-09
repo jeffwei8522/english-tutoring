@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>老師主頁</title>
+<style>
+  body{font-family:system-ui,"Noto Sans TC",Arial,sans-serif;background:#f3f5f7;margin:0;}
+  .app{max-width:1024px;margin:40px auto;background:#fff;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.06);padding:24px 28px;}
+  .header{display:flex;justify-content:space-between;align-items:center}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-top:14px;}
+  .card{background:#f7fafc;border-radius:12px;padding:14px;border:1px solid #e5e7eb}
+  .card h3{margin:0 0 6px}
+  .btn{display:inline-block;padding:8px 12px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>老師主頁</h1>
+    <div id="adminLink"></div>
+  </div>
+  <div id="list" class="grid"></div>
+</div>
+<script>
+const q=(s,e=document)=>e.querySelector(s);
+const isLocal=()=>['127.0.0.1','localhost'].includes(location.hostname);
+async function getJSON(path){
+  if(isLocal()){
+    try{ const r=await fetch(`/api/data/${path}?ts=${Date.now()}`,{cache:'no-store'}); if(r.ok) return await r.json(); }catch(e){}
+  }
+  const r2=await fetch(`${path}?ts=${Date.now()}`,{cache:'no-store'});
+  if(!r2.ok) throw new Error('HTTP '+r2.status);
+  return await r2.json();
+}
+async function init(){
+  if(isLocal()) q('#adminLink').innerHTML = '<a class="btn" href="admin.html">進後台</a>';
+  const roster=await getJSON('roster.json');
+  const wrap=q('#list'); wrap.innerHTML='';
+  (roster.students||[]).forEach(s=>{
+    const el=document.createElement('div'); el.className='card';
+    el.innerHTML=`<h3>${s.name||s.id}</h3>
+      <div style="opacity:.7">id：${s.id}</div>
+      <div style="margin-top:8px"><a class="btn" href="index.html?student=${encodeURIComponent(s.id)}">打開日曆</a></div>`;
+    wrap.appendChild(el);
+  });
+}
+init();
+</script>
+</body>
+</html>
