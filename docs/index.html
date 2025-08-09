@@ -3,64 +3,123 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>課程日曆</title>
+<title>學生課程行事曆｜清大文理補習班</title>
 <style>
-  body{font-family:system-ui,"Noto Sans TC",Arial,sans-serif;background:#f3f5f7;margin:0;}
-  .app{max-width:1024px;margin:40px auto;background:#fff;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.06);padding:24px 28px;position:relative;}
+  :root{
+    --brand:#1d4ed8;      /* 主色 */
+    --accent:#34c759;     /* 綠點 */
+    --ink:#111827;        /* 主字色 */
+    --muted:#6b7280;      /* 次字色 */
+    --bg:#f3f5f7;         /* 背景 */
+    --card:#ffffff;       /* 卡片 */
+    --soft:#f7fafc;       /* 淺卡 */
+    --line:#e5e7eb;       /* 邊框 */
+  }
+  *{box-sizing:border-box}
+  body{font-family:system-ui,"Noto Sans TC",Arial,sans-serif;background:var(--bg);color:var(--ink);margin:0;}
+  a{color:var(--brand);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  /* Header */
+  .site-header{background:#0f172a;color:#fff}
+  .site-header .wrap{max-width:1100px;margin:0 auto;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.5px}
+  .brand .sub{opacity:.85;font-weight:600}
+  .who{font-weight:600;opacity:.9}
+
+  /* App */
+  .app{max-width:1100px;margin:26px auto;background:var(--card);border-radius:14px;box-shadow:0 12px 30px rgba(0,0,0,.06);padding:22px 24px;position:relative;}
   .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
   .nav{display:flex;gap:10px;align-items:center}
-  button.navbtn{border:1px solid #d1d5db;background:#fff;border-radius:8px;padding:6px 10px;cursor:pointer}
-  .links a{margin-left:8px;color:#2563eb;text-decoration:none}
-  .msg{padding:12px 14px;border-radius:8px;margin:8px 0;display:none}
+  button.navbtn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:6px 10px;cursor:pointer}
+  button.navbtn:hover{background:#f9fafb}
+  .links{display:flex;gap:12px;align-items:center}
+  .links .name{font-weight:700}
+
+  .msg{padding:12px 14px;border-radius:10px;margin:8px 0;display:none}
   .msg.err{background:#fde2e0;color:#9b1c1c}
-  .calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:8px;}
+
+  /* Calendar */
+  .calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-top:8px;}
   .dow{font-weight:700;color:#5b6770;text-align:center;}
-  .cell{background:#f7fafc;min-height:74px;border-radius:10px;padding:8px;position:relative}
+  .cell{background:var(--soft);min-height:86px;border-radius:12px;padding:10px;position:relative;border:1px solid var(--line)}
   .cell .day{font-weight:700;color:#3a4a5b;}
-  .cell.has .dot{position:absolute;right:10px;top:10px;width:8px;height:8px;background:#34c759;border-radius:50%;}
-  .cell.today{outline:2px solid #2f80ed;background:#eef6ff;}
-  .popover{position:absolute;z-index:50;min-width:280px;max-width:360px;background:#fff;border-radius:12px;box-shadow:0 12px 28px rgba(0,0,0,.15);padding:12px;display:none}
+  .cell.has .dot{position:absolute;right:10px;top:10px;width:8px;height:8px;background:var(--accent);border-radius:50%;}
+  .cell.today{outline:2px solid var(--brand);background:#eef6ff;}
+  .cell:hover{box-shadow:0 0 0 2px rgba(29,78,216,.15) inset}
+
+  /* Popover */
+  .popover{position:absolute;z-index:50;min-width:300px;max-width:380px;background:#fff;border-radius:12px;box-shadow:0 20px 40px rgba(0,0,0,.18);padding:12px;display:none;border:1px solid var(--line)}
   .popover .row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
-  .card{background:#f7fafc;border-radius:10px;padding:10px 12px;margin:8px 0;}
-  a{color:#2563eb;text-decoration:none} a:hover{text-decoration:underline}
+  .card{background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:8px 0;}
+
+  /* Footer */
+  .site-footer{margin:24px 0 40px;color:var(--muted)}
+  .site-footer .wrap{max-width:1100px;margin:0 auto;padding:0 18px;display:flex;justify-content:space-between;align-items:center}
+  .note{font-size:14px}
 </style>
 </head>
 <body>
-<div class="app" id="app">
-  <div class="topbar">
-    <div class="nav">
-      <button class="navbtn" id="btnPrev">◀</button>
-      <div id="monthLabel" style="font-weight:700"></div>
-      <button class="navbtn" id="btnNext">▶</button>
+  <!-- Header -->
+  <header class="site-header">
+    <div class="wrap">
+      <div class="brand">
+        <div style="font-size:18px">學生課程行事曆</div>
+        <div class="sub">清大文理補習班</div>
+      </div>
+      <div class="who">
+        <span id="studentName">學生：</span>
+        <span id="adminLink" style="margin-left:12px"></span>
+      </div>
     </div>
-    <div class="links">
-      <span id="studentName" style="font-weight:700;margin-right:8px"></span>
-      <span id="adminLink"></span>
-    </div>
-  </div>
+  </header>
 
-  <div id="err" class="msg err"></div>
-  <div id="calendar"></div>
-
-  <div id="popover" class="popover">
-    <div class="row">
-      <label>課程：</label><select id="pCourse"></select>
-      <label>類型：</label><select id="pType"></select>
+  <!-- App -->
+  <main class="app" id="app">
+    <div class="topbar">
+      <div class="nav">
+        <button class="navbtn" id="btnPrev" aria-label="上一月">◀</button>
+        <div id="monthLabel" style="font-weight:700"></div>
+        <button class="navbtn" id="btnNext" aria-label="下一月">▶</button>
+      </div>
+      <div class="links">
+        <!-- 只顯示學生名字與（本機）後台；不露出老師主頁 -->
+      </div>
     </div>
-    <div id="pList"></div>
-  </div>
-</div>
+
+    <div id="err" class="msg err"></div>
+    <div id="calendar"></div>
+
+    <!-- 點有資料的日期才會開 -->
+    <div id="popover" class="popover" role="dialog" aria-modal="true">
+      <div class="row">
+        <label>課程：</label><select id="pCourse"></select>
+        <label>類型：</label><select id="pType"></select>
+      </div>
+      <div id="pList"></div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="note">© <span id="year"></span> 清大文理補習班 | Jeff</div>
+      <div class="note">本頁僅提供學習內容查閱</div>
+    </div>
+  </footer>
 
 <script>
+/* ---------- 基本工具 ---------- */
 const q=(s,e=document)=>e.querySelector(s);
 const params=new URLSearchParams(location.search);
 let currentStudent=params.get('student')||null;
 let currentDate=params.get('date')||null;
 let currentCourse=params.get('course')||null;
 let currentType=params.get('type')||null;
-
 const isLocal=()=>['127.0.0.1','localhost'].includes(location.hostname);
+
 async function getJSON(path){
+  // 本機優先打 API，失敗就回退讀靜態檔（GitHub Pages 可用）
   if(isLocal()){
     try{ const r=await fetch(`/api/data/${path}?ts=${Date.now()}`,{cache:'no-store'}); if(r.ok) return await r.json(); }catch(e){}
   }
@@ -82,7 +141,9 @@ function niceTitle(item){
   return name || '教材';
 }
 function setErr(m){const el=q('#err'); if(m){el.textContent=m; el.style.display='block';} else el.style.display='none';}
+function closePopover(){ const p=q('#popover'); if(p) p.style.display='none'; }
 
+/* ---------- 判斷該日是否有任何項目 ---------- */
 function dateHasAny(dayObj){
   if(!dayObj) return false;
   return Object.values(dayObj).some(courseObj=>{
@@ -91,13 +152,9 @@ function dateHasAny(dayObj){
   });
 }
 
-function closePopover(){
-  const pop = q('#popover');
-  if (pop) pop.style.display = 'none';
-}
-
+/* ---------- 渲染月曆 ---------- */
 function renderCalendar(){
-  closePopover();  // 先把任何舊的 popover 收掉
+  closePopover(); // 重繪時收掉殘留的 popover
   const container=q('#calendar'); container.innerHTML='';
   const y=view.y, m=view.m;
   q('#monthLabel').textContent = `${y} / ${String(m+1).padStart(2,'0')}`;
@@ -118,7 +175,7 @@ function renderCalendar(){
       cell.classList.add('has');
       const dot=document.createElement('span'); dot.className='dot'; cell.appendChild(dot);
       cell.style.cursor='pointer';
-      cell.onclick=()=>openPopover(k, cell);
+      cell.onclick=()=>openPopover(k, cell); // 只有點有綠點的日期才會開
     }
     const todayStr=fmtYMD(new Date());
     if(k===todayStr) cell.classList.add('today');
@@ -127,8 +184,11 @@ function renderCalendar(){
     grid.appendChild(cell);
   }
   container.appendChild(grid);
+
+  // ❌ 不再自動開啟 popover（即使 URL 帶 ?date=）
 }
 
+/* ---------- 小卡（Popover） ---------- */
 function combosFor(dateKey){
   const day=manifest?.days?.[dateKey]||{};
   const combos=[];
@@ -146,15 +206,13 @@ function renderPopoverList(dateKey, courseKey, typeKey){
   if(!arr.length){ wrap.innerHTML='<div class="card">這個組合目前沒有內容</div>'; return; }
   arr.forEach(it=>{
     const card=document.createElement('div'); card.className='card';
-    const a=document.createElement('a'); a.href=it.path;   /* 相對路徑，避免 / 造成 404 */
+    const a=document.createElement('a'); a.href=it.path;  // 相對路徑，靜態可用
     a.textContent=niceTitle(it);
     card.appendChild(a); wrap.appendChild(card);
   });
 }
 function openPopover(dateKey, anchorCell){
   currentDate=dateKey;
-  const u=new URL(location.href); u.searchParams.set('date',dateKey); history.replaceState({},'',u);
-
   const combos=combosFor(dateKey);
   if(!combos.length) return;
 
@@ -169,59 +227,58 @@ function openPopover(dateKey, anchorCell){
   const tk = (currentType && types.includes(currentType)) ? currentType : types[0];
   csel.value=ck; tsel.value=tk;
   renderPopoverList(dateKey, ck, tk);
-  csel.onchange=()=>{ currentCourse=csel.value; renderPopoverList(dateKey, csel.value, tsel.value); syncURL(); };
-  tsel.onchange=()=>{ currentType=tsel.value; renderPopoverList(dateKey, csel.value, tsel.value); syncURL(); };
+  csel.onchange=()=>{ currentCourse=csel.value; renderPopoverList(dateKey, csel.value, tsel.value); };
+  tsel.onchange=()=>{ currentType=tsel.value; renderPopoverList(dateKey, csel.value, tsel.value); };
 
   const ar=anchorCell.getBoundingClientRect();
   const pr=app.getBoundingClientRect();
   pop.style.display='block';
-  pop.style.left = (ar.right - pr.left + 10) + 'px';
+  pop.style.left = (ar.right - pr.left + 12) + 'px';
   pop.style.top  = (ar.top - pr.top + window.scrollY - 6) + 'px';
   const popRect=pop.getBoundingClientRect();
   if(popRect.right > window.innerWidth - 12){
-    pop.style.left = (ar.left - pr.left - popRect.width - 10) + 'px';
+    pop.style.left = (ar.left - pr.left - popRect.width - 12) + 'px';
   }
   document.addEventListener('click', onDocClick);
   function onDocClick(e){ if(pop.contains(e.target)||anchorCell.contains(e.target)) return; pop.style.display='none'; document.removeEventListener('click', onDocClick); }
-  function syncURL(){
-    const u=new URL(location.href);
-    u.searchParams.set('date', dateKey);
-    u.searchParams.set('course', csel.value);
-    u.searchParams.set('type',   tsel.value);
-    history.replaceState({},'',u);
-  }
 }
 
+/* ---------- 載入 ---------- */
 async function loadAll(){
   try{
-    roster = await getJSON('roster.json');
+    // 年份到 footer
+    q('#year').textContent = new Date().getFullYear();
 
-    if (!currentStudent) {
-      if (isLocal()) {
-        // 本機開發可用第一個學生當預設
+    roster=await getJSON('roster.json');
+
+    // 線上一定要用 ?student=，避免學生看到其他名單
+    if(!currentStudent){
+      if(isLocal()){
         currentStudent = roster.students?.[0]?.id || null;
-      } else {
-        // 線上一定要用專屬連結（含 ?student=）
+      }else{
         setErr('請使用老師提供的專屬連結開啟本頁。');
-        return; // 不載入任何資料
+        return;
       }
     }
 
     const stu = (roster.students||[]).find(s=>s.id===currentStudent);
-    q('#studentName').textContent = stu?.name ? `學生：${stu.name}` : `學生：${currentStudent||''}`;
+    q('#studentName').textContent = `學生：${stu?.name || currentStudent}`;
 
-    if (isLocal()) q('#adminLink').innerHTML = '<a href="admin.html">後台</a>';
+    // 本機顯示後台入口（線上不顯示／也不能用）
+    if(isLocal()) q('#adminLink').innerHTML = '<a href="admin.html" style="color:#a7f3d0">後台</a>';
 
-    manifest = await getJSON(`students/${currentStudent}/manifest.json`);
+    manifest=await getJSON(`students/${currentStudent}/manifest.json`);
     renderCalendar();
-  } catch(e){
+  }catch(e){
     console.error(e);
     setErr('讀取資料失敗：請檢查 docs/roster.json 與 docs/students/<id>/manifest.json 路徑/格式。');
   }
 }
 
+/* ---------- 月切換 ---------- */
 q('#btnPrev').onclick=()=>{ if(--view.m<0){view.m=11; view.y--;} renderCalendar(); };
 q('#btnNext').onclick=()=>{ if(++view.m>11){view.m=0; view.y++;} renderCalendar(); };
+
 loadAll();
 </script>
 </body>
