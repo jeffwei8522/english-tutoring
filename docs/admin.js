@@ -71,7 +71,47 @@ function renderCourseType(){
   Object.entries(manifest.types).forEach(([k,v])=>{const o=document.createElement('option'); o.value=k; o.textContent=v||k; t.appendChild(o);});
 }
 
-// 預設帶入：最新日期（>=今天則用最新；若最新在今天以前，就用今天）
+// ▶ 類型 chips + 新增 / 刪除
+function countTypeUsage(key){
+  let cnt=0;
+  Object.values(manifest.days||{}).forEach(perDate=>{
+    Object.values(perDate||{}).forEach(perCourse=>{
+      const arr = perCourse?.[key];
+      if(Array.isArray(arr)) cnt += arr.length;
+    });
+  });
+  return cnt;
+}
+function renderTypeChips(){
+  const wrap=q('#typeChips'); if(!wrap) return;
+  wrap.innerHTML='';
+  Object.entries(manifest.types||{}).forEach(([k,label])=>{
+    const chip=document.createElement('div'); chip.className='chip';
+    const cnt=countTypeUsage(k);
+    chip.innerHTML=`<span class="k">${k}</span><span>${label}</span><span class="cnt">(${cnt})</span>`;
+    const del=document.createElement('button'); del.className='del'; del.textContent='刪除';
+    if(cnt>0){ del.disabled=true; del.title='已有使用紀錄，無法刪除'; }
+    del.onclick=async()=>{
+      if(cnt>0) return;
+      delete manifest.types[k];
+      // 清理空容器
+      Object.keys(manifest.days||{}).forEach(d=>{
+        Object.keys(manifest.days[d]||{}).forEach(c=>{
+          if(manifest.days[d][c] && manifest.days[d][c][k] && manifest.days[d][c][k].length===0){
+            delete manifest.days[d][c][k];
+          }
+        });
+      });
+      await apiSave(`students/${stu}/manifest.json`, manifest);
+      renderCourseType(); renderTypeChips();
+      toast(true,'已刪除類型：'+k);
+    };
+    chip.appendChild(del);
+    wrap.appendChild(chip);
+  });
+}
+
+// ------- 列表（現有條目） -------
 function setDefaultDateFocus(){
   const today=ymd(new Date());
   const dates=Object.keys(manifest.days||{}).sort();
@@ -80,7 +120,6 @@ function setDefaultDateFocus(){
   q('#filterDate').value = pick;
   q('#date').value = pick;
 }
-
 function renderList(){
   const wrap=q('#list'); wrap.innerHTML='';
   const fd=q('#filterDate').value || null;
@@ -100,7 +139,6 @@ function renderList(){
               <button class="btn gray">編輯</button>
               <button class="btn red">刪除</button>
             </div>`;
-          // 編輯：帶入表單 + 載回 HTML 片段
           row.children[1].children[0].onclick=async()=>{
             q('#date').value=d; q('#course').value=course; q('#type').value=type;
             q('#title').value=it.title||''; q('#filename').value=base(it.path||'');
@@ -125,7 +163,6 @@ function renderList(){
             }
             toast(true,'已帶入表單，可直接修改後按「儲存」');
           };
-          // 刪除：一律同步刪 HTML
           row.children[1].children[1].onclick=async()=>{
             const arr=manifest.days[d][course][type];
             const [removed]=arr.splice(idx,1);
@@ -149,7 +186,7 @@ async function loadRoster(){
 }
 async function loadManifest(){
   manifest=await getJSON(`students/${stu}/manifest.json`); ensureBase();
-  renderCourseType(); setDefaultDateFocus(); renderList();
+  renderCourseType(); setDefaultDateFocus(); renderList(); renderTypeChips();
 }
 function buildFilename(date,title){
   const safe=(title||'lesson').trim().replace(/\s+/g,'_').toLowerCase();
@@ -206,6 +243,17 @@ async function reloadCurrentHtml(){
   }catch(e){ toast(false,'重載失敗：'+(e.message||e)); }
 }
 
+// ▶ 新增 / 更新 類型
+async function addOrUpdateType(){
+  const key=(q('#newTypeKey').value||'').trim();
+  const label=(q('#newTypeLabel').value||'').trim();
+  if(!/^[a-z0-9_-]{2,}$/.test(key)) return toast(false,'請用小寫英數與 _- 當作 key（至少 2 字）');
+  manifest.types[key] = label || key;
+  await apiSave(`students/${stu}/manifest.json`, manifest);
+  renderCourseType(); renderTypeChips();
+  toast(true, `已 ${label?'更新':'新增'} 類型：${key}`);
+}
+
 // ------- boot -------
 async function init(){
   await loadRoster(); await loadManifest();
@@ -215,6 +263,7 @@ async function init(){
   q('#btnReloadHtml').onclick=reloadCurrentHtml;
   q('#filterDate').oninput=renderList;
 
+  // 新增學生
   q('#btnAddStudent').onclick=async()=>{
     if(!isLocal()) return toast(false,'新增僅限本機使用');
     const id=(q('#newId').value||'').trim(); const name=(q('#newName').value||'').trim();
@@ -224,5 +273,8 @@ async function init(){
     q('#newId').value=''; q('#newName').value='';
     await loadRoster(); stu=id; await loadManifest(); toast(true,'已新增學生');
   };
+
+  // 新增/更新 類型
+  q('#btnAddType')?.addEventListener('click', addOrUpdateType);
 }
 init();

@@ -29,6 +29,14 @@
   .list .item{background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:8px 10px;margin:6px 0;display:flex;justify-content:space-between;align-items:center;}
   .muted{opacity:.65}
   .links a{color:#2563eb;text-decoration:none;margin-left:8px}
+
+  /* 類型 chips */
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+  .chip{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid #e5e7eb;border-radius:999px;padding:6px 10px;font-size:14px}
+  .chip .k{font-family:ui-monospace,consolas,monaco,monospace;color:#374151;background:#f3f4f6;border-radius:6px;padding:2px 6px}
+  .chip .cnt{color:#6b7280}
+  .chip .del{cursor:pointer;color:#dc2626;border:0;background:#fee2e2;border-radius:6px;padding:2px 6px}
+  .chip .del[disabled]{opacity:.5;cursor:not-allowed}
 </style>
 </head>
 <body>
@@ -83,6 +91,20 @@
         <span class="muted">刪除會**同時**刪除 HTML 檔</span>
       </div>
       <div class="list" id="list"></div>
+    </div>
+  </div>
+
+  <!-- 新增：設定類型 -->
+  <div class="box" style="margin-top:14px">
+    <h3>設定：類型（type）</h3>
+    <div class="row">
+      <input type="text" id="newTypeKey" placeholder="類型 key（如 supplement）"/>
+      <input type="text" id="newTypeLabel" placeholder="顯示名（如 補充教材）"/>
+      <button class="btn" id="btnAddType">新增 / 更新 類型</button>
+    </div>
+    <div class="chips" id="typeChips"></div>
+    <div class="muted" style="margin-top:6px">
+      小提示：若要「改名」，建議新增新 key 後把舊條目改到新 key，再刪舊 key（僅當該類型沒有使用紀錄時可刪）。
     </div>
   </div>
 </div>
