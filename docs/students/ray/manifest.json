@@ -30,6 +30,16 @@
           }
         ]
       }
+    },
+    "2025-08-17": {
+      "english": {
+        "material": [
+          {
+            "title": "prepared",
+            "path": "materials/ray/english/2025-08-17_prepared.html"
+          }
+        ]
+      }
     }
   },
   "types": {
