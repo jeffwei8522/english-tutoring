@@ -35,6 +35,7 @@ async function apiDelete(path){
 
 // ------- state -------
 let roster={students:[]}, manifest=null, stu=null;
+let editingRef=null;  // ★ 記住「正在編輯」的舊位置（date/course/type/path）
 
 // ------- manifest helpers -------
 function ensureBase(){
@@ -63,7 +64,7 @@ function renderStu(){
   (roster.students||[]).forEach(s=>{const o=document.createElement('option'); o.value=s.id; o.textContent=s.name||s.id; sel.appendChild(o);});
   if(!stu) stu=roster.students?.[0]?.id||null;
   if(stu) sel.value=stu;
-  sel.onchange=async()=>{stu=sel.value; await loadManifest();wireCalendarLink();} // ★ 切換學生後更新
+  sel.onchange=async()=>{stu=sel.value; localStorage.setItem('lastStu', stu); await loadManifest();wireCalendarLink();} // ★ 切換學生後更新
   wireCalendarLink();        // ★ 初次渲染也更新
 }
 function renderCourseType(){
@@ -172,6 +173,8 @@ function renderList(){
               toast(false,'讀取既有 HTML 失敗，僅帶入標題/檔名');
             }
             toast(true,'已帶入表單，可直接修改後按「儲存」');
+            // ★ 記下舊位置（為了支援搬移）
+            editingRef = { date: d, course, type, path: it.path };
           };
           row.children[1].children[1].onclick=async()=>{
             // ★ 新增：刪除前確認
@@ -204,9 +207,10 @@ function renderList(){
 
 // ------- actions -------
 async function loadRoster(){
-  roster=await getJSON('roster.json'); renderStu();
+  roster=await getJSON('roster.json'); const last = localStorage.getItem('lastStu'); if (last && (roster.students||[]).some(s=>s.id===last)) stu=last; renderStu();
 }
 async function loadManifest(){
+  editingRef = null;  // ← 切換學生載入資料時，重置編輯狀態
   manifest=await getJSON(`students/${stu}/manifest.json`); ensureBase();
   renderCourseType(); setDefaultDateFocus(); renderList(); renderTypeChips();
   wireCalendarLink();      // ★ 資料載入後更新
@@ -222,8 +226,13 @@ async function doSave(){
   const course=q('#course').value; const type=q('#type').value;
   const title=(q('#title').value||'').trim();
   let filename=(q('#filename').value||'').trim(); if(!filename) filename = buildFilename(date,title);
+  // ★ 若檔名本來就長得像 YYYY-MM-DD_... ，而日期改了，幫忙同步檔名的日期前綴
+  const dateRe=/^\d{4}-\d{2}-\d{2}_/;
+  if (filename && dateRe.test(filename) && filename.slice(0,10)!==date) {filename = filename.replace(dateRe, date + '_');}
   const rel=`materials/${stu}/${course}/${filename}`;
   const html=(q('#html').value||'').trim();
+  const fromEdit = !!editingRef;
+  if (!html && !fromEdit) {return toast(false, '沒有內容：請先輸入內容，或從列表點「編輯」再儲存');}
 
   if(html){
     const wrap=`<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
@@ -239,6 +248,57 @@ async function doSave(){
     await apiSave(rel, wrap);
   }
 
+  
+// ★ 偵測是否有「搬移」情境（日期/課程/類型/檔名變動）
+  const changedKeys = editingRef && (
+    editingRef.date!==date || editingRef.course!==course || editingRef.type!==type || editingRef.path!==rel
+  );
+  let doMove = false;
+  if (changedKeys) {
+    // 詢問使用者：搬移/覆蓋（確定）還是新增（取消）
+    doMove = confirm(
+      '偵測到你變更了日期/課程/類型或檔名。\n' +
+      '按「確定」：搬移/覆蓋原項目到新位置（原項目會被移除）。\n' +
+      '按「取消」：保留原項目，另外新增一筆。'
+    );
+    if (!doMove) {
+      // 走新增：保留舊筆，同時新增一筆
+      // ★ 若沒填 HTML 且新舊路徑不同，複製舊檔到新路徑，避免壞連結
+      if (fromEdit && !html && editingRef?.path && editingRef.path !== rel) {
+        try {
+          const raw = await getText(editingRef.path);
+          await apiSave(rel, raw);
+        } catch (e) {
+          return toast(false, '建立新副本失敗：' + (e.message || e));
+        }
+      }
+      // 走新增路線：清除編輯參考，避免誤刪舊筆
+      editingRef = null;
+    }
+  }
+  if (doMove) {
+    // 若只是搬位置而沒改內容：先把舊檔複製到新路徑
+    if (editingRef.path && editingRef.path !== rel && !html) {
+      try {
+        const raw = await getText(editingRef.path);
+        await apiSave(rel, raw);
+      } catch (e) {
+        toast(false, '搬移時建立新檔失敗：' + (e.message || e));
+      }
+    }
+    // 從舊位置移除那筆
+    const oldArr = manifest.days?.[editingRef.date]?.[editingRef.course]?.[editingRef.type];
+    if (Array.isArray(oldArr)) {
+      const i = oldArr.findIndex(x => x.path === editingRef.path);
+      if (i >= 0) oldArr.splice(i, 1);
+      removeEmpty(editingRef.date, editingRef.course, editingRef.type);
+    }
+    // 舊檔與新檔不同路徑時，刪舊檔
+    if (editingRef.path && editingRef.path !== rel) {
+      try { await apiDelete(editingRef.path); } catch(e) { toast(false, '刪除舊檔失敗：'+(e.message||e)); }
+    }
+  }
+
   const arr=ensureArr(date,course,type);
   const exists=arr.find(x=>x.path===rel);
   if(exists){ exists.title=title; } else { arr.push({title, path: rel}); }
@@ -248,11 +308,14 @@ async function doSave(){
   if(!q('#keepForm').checked){
     q('#title').value=''; q('#filename').value=''; q('#html').value='';
   }
+  // ★ 在清掉 editingRef 之前決定訊息（用既有的 changedKeys / doMove）
+  const onlyMetaUpdate = fromEdit && !html && !changedKeys && !doMove;
+  editingRef = null;  // 存檔完成後清掉編輯狀態
   setDefaultDateFocus(); renderList();
-  toast(true,'已儲存');
+  toast(true, onlyMetaUpdate ? '已儲存（內容未變，只更新標題/分類）' : '已儲存');
 }
 
-function clearForm(){ q('#title').value=''; q('#filename').value=''; q('#html').value=''; }
+function clearForm(){ q('#title').value=''; q('#filename').value=''; q('#html').value=''; editingRef = null;} // ← 一併清掉編輯狀態，之後就是「純新增」
 async function reloadCurrentHtml(){
   const file=q('#filename').value; if(!file) return toast(false,'目前沒有檔名可重載');
   const rel=`materials/${stu}/${q('#course').value}/${file}`;
