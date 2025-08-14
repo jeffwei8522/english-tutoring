@@ -93,7 +93,16 @@ function renderTypeChips(){
     const del=document.createElement('button'); del.className='del'; del.textContent='刪除';
     if(cnt>0){ del.disabled=true; del.title='已有使用紀錄，無法刪除'; }
     del.onclick=async()=>{
-      if(cnt>0) return;
+      if(cnt>0) return; // 已經有使用紀錄時本來就禁止刪除
+      // ★ 新增：刪除前確認
+      const ok = confirm(
+        `確認刪除這個類型嗎？\n\n` +
+        `Key：${k}\n` +
+        `顯示名稱：${label}\n\n` +
+        `僅當此類型沒有任何使用紀錄時才可刪除。\n` +
+        `此操作無法復原！`
+      );
+      if(!ok) return;
       delete manifest.types[k];
       // 清理空容器
       Object.keys(manifest.days||{}).forEach(d=>{
@@ -165,6 +174,18 @@ function renderList(){
             toast(true,'已帶入表單，可直接修改後按「儲存」');
           };
           row.children[1].children[1].onclick=async()=>{
+            // ★ 新增：刪除前確認
+            const title = it.title || base(it.path||'');
+            const msg =
+              `確認要刪除這個項目嗎？\n\n` +
+              `學生：${stu}\n` +
+              `日期：${d}\n` +
+              `課程：${manifest.courses[course]?.label||course} (${course})\n` +
+              `類型：${manifest.types[type]||type} (${type})\n` +
+              `標題/檔名：${title}\n\n` +
+              `此操作將從 manifest 移除，並嘗試刪除對應檔案（若有）。\n` +
+              `此操作無法復原！`;
+            if (!confirm(msg)) return;
             const arr=manifest.days[d][course][type];
             const [removed]=arr.splice(idx,1);
             removeEmpty(d,course,type);
