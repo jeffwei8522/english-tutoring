@@ -52,6 +52,10 @@ def zip_project(root_path: Path, include_exts, output_dir_name=".ai_zip_output",
     for filepath in root_path.rglob("*"):
         if filepath.is_dir():
             continue
+
+        if output_dir_name in filepath.parts:  # 排除輸出資料夾
+            continue
+        
         rel_path = filepath.relative_to(root_path)
 
         if rel_path.name == "ai_zipper.py":
@@ -103,6 +107,19 @@ if __name__ == "__main__":
             "Defaults: " + ", ".join(DEFAULT_EXTS)
         ),
     )
+    parser.add_argument(
+        "--exclude-ext",
+        nargs="*",
+        help="File extensions to exclude from the default include list."
+    )
     args = parser.parse_args()
+    
+    # 如果有指定排除，就從 include-ext 扣掉
+    final_exts = args.include_ext
+    if args.exclude_ext:
+        # 正規化成小寫且加上前面的點
+        exclude_set = {e.lower() if e.startswith(".") else f".{e.lower()}"
+                       for e in args.exclude_ext}
+        final_exts = [ext for ext in args.include_ext if ext.lower() not in exclude_set]
 
-    zip_project(Path(args.root), args.include_ext)
+    zip_project(Path(args.root), final_exts)
