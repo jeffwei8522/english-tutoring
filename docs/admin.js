@@ -63,7 +63,8 @@ function renderStu(){
   (roster.students||[]).forEach(s=>{const o=document.createElement('option'); o.value=s.id; o.textContent=s.name||s.id; sel.appendChild(o);});
   if(!stu) stu=roster.students?.[0]?.id||null;
   if(stu) sel.value=stu;
-  sel.onchange=async()=>{stu=sel.value; await loadManifest();}
+  sel.onchange=async()=>{stu=sel.value; await loadManifest();wireCalendarLink();} // ★ 切換學生後更新
+  wireCalendarLink();        // ★ 初次渲染也更新
 }
 function renderCourseType(){
   const c=q('#course'), t=q('#type'); c.innerHTML=''; t.innerHTML='';
@@ -187,6 +188,7 @@ async function loadRoster(){
 async function loadManifest(){
   manifest=await getJSON(`students/${stu}/manifest.json`); ensureBase();
   renderCourseType(); setDefaultDateFocus(); renderList(); renderTypeChips();
+  wireCalendarLink();      // ★ 資料載入後更新
 }
 function buildFilename(date,title){
   const safe=(title||'lesson').trim().replace(/\s+/g,'_').toLowerCase();
@@ -254,6 +256,28 @@ async function addOrUpdateType(){
   toast(true, `已 ${label?'更新':'新增'} 類型：${key}`);
 }
 
+function calendarURL(){
+  // 取目前選中的學生與日期（若有 date 篩選）
+  const dInput = q('#filterDate');
+  const d = dInput && dInput.value ? dInput.value.trim() : '';
+  const base = 'index.html';
+  const qs = d
+    ? `?student=${encodeURIComponent(stu)}&date=${encodeURIComponent(d)}`
+    : `?student=${encodeURIComponent(stu)}`;
+  return `${base}${qs}#calendar-widget`;
+}
+
+function wireCalendarLink(){
+  const a = q('#gotoCalendar');
+  if(!a || !stu) return;
+  a.href = calendarURL();                    // 讓 href 反映目前選擇
+  a.onclick = (ev)=>{                        // 保險：攔截點擊強制導向正確 URL
+    ev.preventDefault();
+    location.href = calendarURL();
+  };
+}
+
+
 // ------- boot -------
 async function init(){
   await loadRoster(); await loadManifest();
@@ -261,7 +285,7 @@ async function init(){
   q('#btnSave').onclick=doSave;
   q('#btnClear').onclick=clearForm;
   q('#btnReloadHtml').onclick=reloadCurrentHtml;
-  q('#filterDate').oninput=renderList;
+  q('#filterDate').oninput=()=>{ renderList();wireCalendarLink();} // ★ 日期變更也更新
 
   // 新增學生
   q('#btnAddStudent').onclick=async()=>{
