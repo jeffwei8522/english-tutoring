@@ -40,10 +40,32 @@
           }
         ]
       }
+    },
+    "2025-08-31": {
+      "english": {
+        "note": [
+          {
+            "title": "提醒事項",
+            "path": "materials/ray/english/2025-08-31_提醒事項.html"
+          }
+        ]
+      },
+      "math": {
+        "note": [
+          {
+            "title": "提醒事項",
+            "path": "materials/ray/math/2025-08-31_提醒事項.html"
+          }
+        ]
+      }
     }
   },
   "types": {
     "material": "教材",
-    "homework": "作業"
-  }
+    "homework": "作業",
+    "note": "提醒"
+  },
+  "holidays": [
+    "2025-08-24"
+  ]
 }

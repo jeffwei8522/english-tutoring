@@ -13,7 +13,8 @@
   "types": {
     "material": "教材",
     "supplement": "補充教材",
-    "homework": "作業"
+    "homework": "作業",
+    "note": "提醒"
   },
   "days": {
     "2025-08-09": {
@@ -61,6 +62,19 @@
           }
         ]
       }
+    },
+    "2025-08-23": {
+      "english": {
+        "note": [
+          {
+            "title": "放假一天!",
+            "path": "materials/庭妤/english/2025-08-23_放假一天!.html"
+          }
+        ]
+      }
     }
-  }
+  },
+  "holidays": [
+    "2025-08-23"
+  ]
 }

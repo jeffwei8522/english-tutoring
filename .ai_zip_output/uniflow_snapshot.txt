@@ -654,7 +654,8 @@ def _default_manifest(student_id: str) -> dict:
         "displayName": student_id,
         "courses": {"english": {"label": "英文"}, "math": {"label": "數學"}},
         "types": {"material": "教材", "homework": "作業"},
-        "days": {}
+        "days": {},
+        "holidays": []
     }
 
 def _default_roster() -> dict:
@@ -832,6 +833,7 @@ if __name__ == "__main__":
 
     <div class="box">
       <h3>現有條目</h3>
+      <button id="btnHoliday" class="btn" style="background:#f59e0b;color:#fff">放假 / 取消</button>
       <div class="row">
         <label>篩選日期：</label>
         <input type="date" id="filterDate"/>
@@ -863,6 +865,7 @@ if __name__ == "__main__":
 
 === FILE: docs\admin.js ===
 // ------- helpers -------
+const isHolidayDate = d => Array.isArray(manifest?.holidays) && manifest.holidays.includes(d);
 const q=(s,e=document)=>e.querySelector(s);
 const msg=q('#msg');
 const base=(p)=>p.split('/').pop();
@@ -907,6 +910,7 @@ function ensureBase(){
   manifest.courses=manifest.courses||{english:{label:'英文'}, math:{label:'數學'}};
   manifest.types  =manifest.types  ||{material:'教材', homework:'作業'};
   manifest.days   =manifest.days   ||{};
+  manifest.holidays = manifest.holidays || []; // ★ 新增，避免舊檔 undefined
 }
 function ensureArr(date,course,type){
   manifest.days[date]=manifest.days[date]||{};
@@ -995,12 +999,38 @@ function setDefaultDateFocus(){
   q('#filterDate').value = pick;
   q('#date').value = pick;
 }
+
 function renderList(){
   const wrap=q('#list'); wrap.innerHTML='';
   const fd=q('#filterDate').value || null;
   const days=manifest.days||{};
   const dates=Object.keys(days).sort().filter(d=>!fd||d===fd);
-  if(!dates.length){ wrap.innerHTML='<div class="item" style="opacity:.7">目前沒有條目</div>'; return; }
+  const hasEntries = dates.length > 0;
+
+  // 選了篩選日期且該日是放假 → 顯示 🧡 提示（不管有沒有教材）
+  if (fd && isHolidayDate(fd)) {
+    const tip = document.createElement('div');
+    tip.className='item';
+    tip.style.borderLeft='4px solid #f59e0b';
+    tip.textContent='🧡 此日標記為放假（仍可新增教材/作業）';
+    wrap.appendChild(tip);
+  }
+
+  // 空狀態：分「有選 fd」與「沒選 fd」兩種邏輯
+  if (!hasEntries) {
+    if (fd) {
+      // 有選日期但沒教材：不要覆蓋掉上面的 tip，只補一行說明即可
+      const empty=document.createElement('div');
+      empty.className='item'; empty.style.opacity='.7';
+      empty.textContent='（本日無教材/作業）';
+      wrap.appendChild(empty);
+      return;
+    } else {
+      // 沒選日期且整個月沒任何條目
+      wrap.innerHTML='<div class="item" style="opacity:.7">目前沒有條目</div>';
+      return;
+    }
+  }
 
   dates.forEach(d=>{
     const perDate=days[d];
@@ -1079,6 +1109,18 @@ async function loadManifest(){
   renderCourseType(); setDefaultDateFocus(); renderList(); renderTypeChips();
   wireCalendarLink();      // ★ 資料載入後更新
 }
+
+async function toggleHolidayForCurrentDate(){
+  const d = q('#filterDate').value || q('#date').value;
+  if(!d) return toast(false,'請先選日期');
+  manifest.holidays = Array.isArray(manifest.holidays) ? manifest.holidays : [];
+  const i = manifest.holidays.indexOf(d);
+  if (i === -1) { manifest.holidays.push(d); toast(true, `已標記放假：${d}`); }
+  else { manifest.holidays.splice(i,1); toast(true, `已取消放假：${d}`); }
+  await apiSave(`students/${stu}/manifest.json`, manifest);
+  renderList();
+}
+
 function buildFilename(date,title){
   const safe=(title||'lesson').trim().replace(/\s+/g,'_').toLowerCase();
   return `${date}_${safe}.html`;
@@ -1093,6 +1135,12 @@ async function doSave(){
   // ★ 若檔名本來就長得像 YYYY-MM-DD_... ，而日期改了，幫忙同步檔名的日期前綴
   const dateRe=/^\d{4}-\d{2}-\d{2}_/;
   if (filename && dateRe.test(filename) && filename.slice(0,10)!==date) {filename = filename.replace(dateRe, date + '_');}
+  
+  // ★ 一律補上 .html（僅當使用者沒打副檔名）
+  if (!/\.[a-z0-9]+$/i.test(filename)) {
+    filename += '.html';
+    q('#filename').value = filename; // 讓 UI 也反映正確檔名
+  }
   const rel=`materials/${stu}/${course}/${filename}`;
   const html=(q('#html').value||'').trim();
   const fromEdit = !!editingRef;
@@ -1182,6 +1230,11 @@ async function doSave(){
 function clearForm(){ q('#title').value=''; q('#filename').value=''; q('#html').value=''; editingRef = null;} // ← 一併清掉編輯狀態，之後就是「純新增」
 async function reloadCurrentHtml(){
   const file=q('#filename').value; if(!file) return toast(false,'目前沒有檔名可重載');
+  // ★ 補副檔名
+  if (!/\.[a-z0-9]+$/i.test(filename)) {
+    filename += '.html';
+    q('#filename').value = filename;
+  }
   const rel=`materials/${stu}/${q('#course').value}/${file}`;
   try{
     const raw=await getText(rel);
@@ -1248,6 +1301,8 @@ async function init(){
 
   // 新增/更新 類型
   q('#btnAddType')?.addEventListener('click', addOrUpdateType);
+  q('#btnHoliday')?.addEventListener('click', toggleHolidayForCurrentDate);
+
 }
 init();
 
@@ -1300,6 +1355,14 @@ init();
   .cell{background:var(--soft);min-height:86px;border-radius:12px;padding:10px;position:relative;border:1px solid var(--line)}
   .cell .day{font-weight:700;color:#3a4a5b;}
   .cell.has .dot{position:absolute;right:10px;top:10px;width:8px;height:8px;background:var(--accent);border-radius:50%;}
+  .cell .dots .dot-holiday { background: #f59e0b; } /* 或加 !important */
+  /* --- 多顆點（綠＋橘）--- */
+  .cell .dots{
+    position:absolute; right:10px; top:10px;
+    display:flex; gap:4px;
+  }
+  .cell .dots .dot{ position:static; } /* 覆蓋 .cell.has .dot 的 absolute，避免重疊 */
+  .dot-holiday{ background:#f59e0b; }   /* 橘點 */
   .cell.today{outline:2px solid var(--brand);background:#eef6ff;}
   .cell:hover{box-shadow:0 0 0 2px rgba(29,78,216,.15) inset}
 
@@ -1425,12 +1488,25 @@ function renderCalendar(){
   const daysMap=manifest?.days||{};
   for(let day=1; day<=days; day++){
     const d=new Date(y,m,day), k=fmtYMD(d), cell=document.createElement('div'); cell.className='cell';
+    // 有沒有教材/作業（綠點）
     const has = dateHasAny(daysMap[k]);
-    if(has){
+    // 是否放假（橘點）— 舊 manifest 沒 holidays 時會自動視為 []
+    const isOff = Array.isArray(manifest?.holidays) && manifest.holidays.includes(k);
+
+    if (has || isOff) {
+      // 統一給 .has（只是視覺用，不影響資料）
       cell.classList.add('has');
-      const dot=document.createElement('span'); dot.className='dot'; cell.appendChild(dot);
-      cell.style.cursor='pointer';
-      cell.onclick=()=>openPopover(k, cell); // 只有點有綠點的日期才會開
+
+      // 右上角可放 1～2 顆點（綠＋橘）
+      const dots = document.createElement('span');
+      dots.className = 'dots';
+      if (has)  { const g = document.createElement('span'); g.className = 'dot'; dots.appendChild(g); }
+      if (isOff){ const o = document.createElement('span'); o.className = 'dot dot-holiday'; dots.appendChild(o); }
+      cell.appendChild(dots);
+
+      // 點擊行為：有教材→開清單；只有放假→跳訊息
+      cell.style.cursor = 'pointer';
+      cell.onclick = ()=>openPopover(k, cell, { has, isOff });
     }
     const todayStr=fmtYMD(new Date());
     if(k===todayStr) cell.classList.add('today');
@@ -1466,24 +1542,49 @@ function renderPopoverList(dateKey, courseKey, typeKey){
     card.appendChild(a); wrap.appendChild(card);
   });
 }
-function openPopover(dateKey, anchorCell){
+function openPopover(dateKey, anchorCell, flags={}){
+  const { has=false, isOff=false } = flags;
   currentDate=dateKey;
   const combos=combosFor(dateKey);
-  if(!combos.length) return;
+  // if(!combos.length) return; // 沒有資料就不開 popover
 
   const pop=q('#popover'); const app=q('#app');
   const csel=q('#pCourse'), tsel=q('#pType');
   csel.innerHTML=''; tsel.innerHTML='';
+  // 新增／更新放假 banner（橘色）
+  let banner = pop.querySelector('.holiday-banner');
+  if (isOff) {
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.className = 'card holiday-banner';
+      banner.style.borderColor = '#f59e0b';
+      banner.style.background = '#fff7e6';
+      banner.textContent = '🧡 此日標記為放假（仍可新增教材/作業）';
+      pop.insertBefore(banner, pop.firstChild);
+      }
+      } else if (banner) {
+        banner.remove();
+        }
   const courses=[...new Set(combos.map(x=>x.course))];
   const types=[...new Set(combos.map(x=>x.type))];
-  courses.forEach(c=>{const o=document.createElement('option'); o.value=c; o.textContent=manifest.courses?.[c]?.label||c; csel.appendChild(o);});
-  types.forEach(t=>{const o=document.createElement('option'); o.value=t; o.textContent=manifest.types?.[t]||t; tsel.appendChild(o);});
-  const ck = (currentCourse && courses.includes(currentCourse)) ? currentCourse : courses[0];
-  const tk = (currentType && types.includes(currentType)) ? currentType : types[0];
-  csel.value=ck; tsel.value=tk;
-  renderPopoverList(dateKey, ck, tk);
-  csel.onchange=()=>{ currentCourse=csel.value; renderPopoverList(dateKey, csel.value, tsel.value); };
-  tsel.onchange=()=>{ currentType=tsel.value; renderPopoverList(dateKey, csel.value, tsel.value); };
+  const headerRow = pop.querySelector('.row');   // 課程/類型那一排
+  const listWrap  = q('#pList');
+  if (combos.length === 0) {
+    // 沒教材：隱藏下拉，列表顯示一行說明（仍可由後台新增）
+    if (headerRow) headerRow.style.display = 'none';
+    listWrap.innerHTML = '<div class="card">（本日無教材/作業）</div>';
+  } else {
+    if (headerRow) headerRow.style.display = '';
+    courses.forEach(c=>{ const o=document.createElement('option'); o.value=c; o.textContent=manifest.courses?.[c]?.label||c; csel.appendChild(o); });
+    types.forEach(t=>{ const o=document.createElement('option'); o.value=t; o.textContent=manifest.types?.[t]||t; tsel.appendChild(o); });
+    const ck=(currentCourse&&courses.includes(currentCourse))?currentCourse:courses[0];
+    const tk=(currentType&&types.includes(currentType))?currentType:types[0];
+    csel.value=ck; tsel.value=tk;
+    renderPopoverList(dateKey, ck, tk);
+    csel.onchange=()=>{ currentCourse=csel.value; renderPopoverList(dateKey, csel.value, tsel.value); };
+    tsel.onchange=()=>{ currentType=tsel.value; renderPopoverList(dateKey, csel.value, tsel.value); };
+  }
+
 
   const ar=anchorCell.getBoundingClientRect();
   const pr=app.getBoundingClientRect();
@@ -1660,7 +1761,10 @@ init();
   "types": {
     "material": "教材",
     "homework": "作業"
-  }
+  },
+  "holidays": [
+    "2025-08-24"
+  ]
 }
 
 === FILE: docs\students\sally\manifest.json ===
@@ -1753,13 +1857,16 @@ init();
       "english": {
         "material": [
           {
-            "title": "主題探討: 心理健康與壓力調適",
-            "path": "materials/庭妤/english/2025-08-16_主題探討:_心理健康與壓力調適.html"
+            "title": "主題探討-心理健康與壓力調適",
+            "path": "materials/庭妤/english/2025-08-16_主題探討-心理健康與壓力調適.html"
           }
         ]
       }
     }
-  }
+  },
+  "holidays": [
+    "2025-08-23"
+  ]
 }
 
 === FILE: docs\materials\庭妤\english\2025-07-19_高三學測英文_-_本週複習精華.html ===
@@ -2679,6 +2786,180 @@ init();
 </script></div>
 </body></html>
 
+=== FILE: docs\materials\庭妤\english\2025-08-16_主題探討-心理健康與壓力調適.html ===
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>主題探討-心理健康與壓力調適</title>
+<style>body{font-family:system-ui,"Noto Sans TC",Arial,sans-serif;margin:0;background:#f6f7fb;}
+.header{background:#111827;color:#fff;padding:10px 14px;}
+.header a{color:#a7f3d0;text-decoration:none}
+.container{max-width:900px;margin:18px auto;background:#fff;border-radius:12px;padding:18px 20px;box-shadow:0 10px 30px rgba(0,0,0,.06)}</style>
+</head><body>
+<div class="header">← <a href="../../../index.html?student=%E5%BA%AD%E5%A6%A4&date=2025-08-16">返回日曆</a></div>
+<div class="container"><h1>主題探討-心理健康與壓力調適</h1><meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高三學測英文 - 主題探討:心理健康與壓力調適</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&amp;display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+        }
+        summary {
+            list-style: none;
+        }
+        summary::-webkit-details-marker {
+            display: none;
+        }
+        summary::before {
+            content: '▶';
+            margin-right: 8px;
+            font-size: 0.8em;
+            display: inline-block;
+            transition: transform 0.2s ease-in-out;
+        }
+        details[open] summary::before {
+            transform: rotate(90deg);
+        }
+    </style>
+
+
+
+    <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-lg p-6 sm:p-10">
+        <header class="text-center mb-12">
+            <h1 class="text-3xl sm:text-4xl font-bold text-blue-800 mb-2">高三學測英文 - 主題探討 🧠</h1>
+            <p class="text-lg text-gray-600">主題：心理健康與壓力調適 (Mental Health &amp; Stress Management)</p>
+        </header>
+
+        <main class="space-y-12">
+
+            <!-- 1. 重點單字 -->
+            <section id="vocabulary">
+                <h2 class="text-2xl font-bold text-blue-700 border-b-2 border-blue-200 pb-2 mb-6">1. 重點單字 (Key Vocabulary)</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <h3 class="font-bold text-blue-900">mental health (n.)</h3>
+                        <p class="text-gray-700">心理健康</p>
+                        <p class="text-sm text-gray-600 mt-1">e.g., Taking breaks is important for your <strong>mental health</strong>.</p>
+                    </div>
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <h3 class="font-bold text-blue-900">pressure (n.)</h3>
+                        <p class="text-gray-700">壓力</p>
+                        <p class="text-sm text-gray-600 mt-1">e.g., Students often face immense <strong>pressure</strong> from exams.</p>
+                    </div>
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <h3 class="font-bold text-blue-900">anxiety (n.)</h3>
+                        <p class="text-gray-700">焦慮</p>
+                        <p class="text-sm text-gray-600 mt-1">e.g., A lack of sleep can increase feelings of <strong>anxiety</strong>.</p>
+                    </div>
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <h3 class="font-bold text-blue-900">stress (n.) / (v.)</h3>
+                        <p class="text-gray-700">壓力；強調</p>
+                        <p class="text-sm text-gray-600 mt-1">e.g., Exercise is a good way to relieve <strong>stress</strong>.</p>
+                    </div>
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <h3 class="font-bold text-blue-900">relax (v.)</h3>
+                        <p class="text-gray-700">放鬆</p>
+                        <p class="text-sm text-gray-600 mt-1">e.g., It's important to <strong>relax</strong> and unwind after a long day of studying.</p>
+                    </div>
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <h3 class="font-bold text-blue-900">properly (adv.)</h3>
+                        <p class="text-gray-700">適當地；正確地</p>
+                        <p class="text-sm text-gray-600 mt-1">e.g., To stay healthy, you need to eat and sleep <strong>properly</strong>.</p>
+                    </div>
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <h3 class="font-bold text-blue-900">psychological (adj.)</h3>
+                        <p class="text-gray-700">心理的</p>
+                        <p class="text-sm text-gray-600 mt-1">e.g., Talking about your feelings can relieve <strong>psychological</strong> stress.</p>
+                    </div>
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <h3 class="font-bold text-blue-900">physical (adj.)</h3>
+                        <p class="text-gray-700">身體的</p>
+                        <p class="text-sm text-gray-600 mt-1">e.g., Regular <strong>physical</strong> activity is beneficial for both body and mind.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. 核心句型 -->
+            <section id="patterns">
+                <h2 class="text-2xl font-bold text-blue-700 border-b-2 border-blue-200 pb-2 mb-6">2. 核心句型 (Core Sentence Patterns)</h2>
+                <div class="space-y-4">
+                    <div class="bg-gray-50 p-4 rounded-lg shadow-inner">
+                        <p class="font-semibold">句型 1: <code class="text-pink-600">A is just as important as B.</code> (A 和 B 一樣重要)</p>
+                        <p class="mt-2 text-gray-700">說明：用於強調兩者同等重要，是寫作中常用的比較級句型。</p>
+                        <p class="mt-1 text-gray-700">例句：<strong>Mental health is just as important as physical health.</strong></p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg shadow-inner">
+                        <p class="font-semibold">句型 2: <code class="text-pink-600">A lack of + N ... may/can lead to/increase + N.</code> (缺乏 A 可能會導致/增加 B)</p>
+                        <p class="mt-2 text-gray-700">說明：用來描述某種缺失所帶來的負面因果關係。</p>
+                        <p class="mt-1 text-gray-700">例句：<strong>A lack of sleep and exercise may increase anxiety and stress.</strong></p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg shadow-inner">
+                        <p class="font-semibold">句型 3: <code class="text-pink-600">V-ing ... can help (to) + Vr...</code> (做...有助於...)</p>
+                        <p class="mt-2 text-gray-700">說明：以動名詞當主詞，強調某個「動作」能帶來的正面效果。</p>
+                        <p class="mt-1 text-gray-700">例句：<strong>Sharing feelings with friends or family can help reduce psychological stress.</strong></p>
+                    </div>
+                     <div class="bg-gray-50 p-4 rounded-lg shadow-inner">
+                        <p class="font-semibold">句型 4: <code class="text-pink-600">When facing + N, one should learn to + Vr...</code> (當面臨...時，應該學會...)</p>
+                        <p class="mt-2 text-gray-700">說明：這是一個分詞構句的簡化用法，用來提供建議。</p>
+                        <p class="mt-1 text-gray-700">例句：<strong>When facing exam pressure, students should learn to relax properly.</strong></p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. 寫作攻略 -->
+            <section id="writing-strategy">
+                <h2 class="text-2xl font-bold text-purple-700 border-b-2 border-purple-200 pb-2 mb-6">3. 寫作攻略 (Writing Strategy)</h2>
+                
+                <div class="bg-purple-50 border-l-4 border-purple-400 p-6 rounded-r-lg space-y-6">
+                    <div>
+                        <h3 class="text-lg font-bold text-purple-900">第一步：分析題目與文體</h3>
+                        <p class="mt-1 text-gray-800">題目 "How Students Can Take Care of Their Mental Health" 是一個典型的<strong class="font-semibold">「方法指導型」論說文</strong>。你需要先點出問題的重要性，然後提供具體的解決方法。</p>
+                    </div>
+
+                    <div>
+                        <h3 class="text-lg font-bold text-purple-900">第二步：規劃段落架構 (Paragraph Structure)</h3>
+                        <p class="mt-1 text-gray-800 mb-4">這類文章通常分成兩段，結構清晰，易於發揮：</p>
+                        
+                        <div class="space-y-3">
+                            <div class="bg-white p-4 rounded-lg border border-purple-200">
+                                <p><strong>A. 第一段：闡述問題的重要性 (State the Problem &amp; Importance)</strong></p>
+                                <ul class="list-disc list-inside mt-2 text-gray-700 text-sm space-y-1">
+                                    <li><strong>主旨句 (Thesis Statement):</strong> 開門見山，直接點出心理健康與身體健康同等重要。 (e.g., "Taking care of mental health is just as crucial as maintaining physical health, especially for students under academic pressure.")</li>
+                                    <li><strong>舉例說明 (Examples):</strong> 具體說明心理健康不佳會帶來什麼影響。你可以使用 "For instance," 或 "such as" 來引導例子。 (e.g., "...which can lead to negative consequences, such as anxiety, insomnia, and a decline in academic performance.")</li>
+                                </ul>
+                            </div>
+
+                            <div class="bg-white p-4 rounded-lg border border-purple-200">
+                                <p><strong>B. 第二段：提供具體方法與建議 (Provide Solutions &amp; Suggestions)</strong></p>
+                                <ul class="list-disc list-inside mt-2 text-gray-700 text-sm space-y-1">
+                                    <li><strong>主題句 (Topic Sentence):</strong> 用一句話總結這段的重點，即「有許多方法可以維持心理健康」。 (e.g., "Fortunately, there are several effective ways for students to maintain their mental well-being.")</li>
+                                    <li><strong>條列方法 (Listing Methods):</strong> 使用轉折詞 (e.g., "First," "Moreover," "Finally,") 來分別介紹不同的方法。例如：
+                                        <ul>
+                                            <li>- <strong>規律運動 (Regular exercise)</strong></li>
+                                            <li>- <strong>培養嗜好 (Cultivating hobbies)</strong></li>
+                                            <li>- <strong>與人傾訴 (Talking to friends or family)</strong></li>
+                                            <li>- <strong>維持規律作息 (Keeping a regular schedule)</strong></li>
+                                        </ul>
+                                    </li>
+                                    <li><strong>結論句 (Concluding Sentence):</strong> 在段末總結，並強調這些方法的重要性或分享個人看法。 (e.g., "By adopting these habits, students can not only cope with stress but also lead a more balanced life.")</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+        
+        <footer class="text-center mt-16 pt-8 border-t border-gray-200">
+            <p class="text-gray-500">照顧好自己的心，才能走得更遠！💖</p>
+            <p class="text-sm text-gray-400 mt-2">清大文理補習班・Jeff</p>
+        </footer>
+    </div></div>
+</body></html>
+
 === FILE: docs\materials\sally\english\2025-08-09_主題：媒體素養_(media_literacy).html ===
 <!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>主題：媒體素養 (Media Literacy)</title>
@@ -3269,7 +3550,7 @@ init();
 .container{max-width:900px;margin:18px auto;background:#fff;border-radius:12px;padding:18px 20px;box-shadow:0 10px 30px rgba(0,0,0,.06)}</style>
 </head><body>
 <div class="header">← <a href="../../../index.html?student=ray&date=2025-08-17">返回日曆</a></div>
-<div class="container"><h1>prepared</h1>123</div>
+<div class="container"><h1>prepared</h1>456</div>
 </body></html>
 
 === FILE: docs\materials\ray\math\2025-08-10_lesson.html ===
