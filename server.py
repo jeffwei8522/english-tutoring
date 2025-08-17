@@ -22,7 +22,8 @@ def _default_manifest(student_id: str) -> dict:
         "displayName": student_id,
         "courses": {"english": {"label": "英文"}, "math": {"label": "數學"}},
         "types": {"material": "教材", "homework": "作業"},
-        "days": {}
+        "days": {},
+        "holidays": []
     }
 
 def _default_roster() -> dict:
