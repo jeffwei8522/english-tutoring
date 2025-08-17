@@ -44,9 +44,17 @@
   .dow{font-weight:700;color:#5b6770;text-align:center;}
   .cell{background:var(--soft);min-height:86px;border-radius:12px;padding:10px;position:relative;border:1px solid var(--line)}
   .cell .day{font-weight:700;color:#3a4a5b;}
-  .cell.has .dot{position:absolute;right:10px;top:10px;width:8px;height:8px;background:var(--accent);border-radius:50%;}
-  .cell.today{outline:2px solid var(--brand);background:#eef6ff;}
-  .cell:hover{box-shadow:0 0 0 2px rgba(29,78,216,.15) inset}
+
+  /* 單點舊規則：只管位置與尺寸，不管顏色 */
+  .cell.has .dot{ position:absolute; right:10px; top:10px; width:8px; height:8px; border-radius:50%; }
+
+  /* 多點：預設綠色 */
+  .cell .dots{ position:absolute; right:10px; top:10px; display:flex; gap:4px; }
+  .cell .dots .dot{ position:static; width:8px; height:8px; border-radius:50%; background:var(--accent); } /* 綠 */
+
+  /* 其他顏色覆蓋 */
+  .cell .dots .dot-holiday{ background:#f59e0b; } /* 橘 */
+  .cell .dots .dot-note   { background:#ec4899; } /* 粉 */
 
   /* Popover */
   .popover{position:absolute;z-index:50;min-width:300px;max-width:380px;background:#fff;border-radius:12px;box-shadow:0 20px 40px rgba(0,0,0,.18);padding:12px;display:none;border:1px solid var(--line)}
@@ -143,14 +151,22 @@ function niceTitle(item){
 function setErr(m){const el=q('#err'); if(m){el.textContent=m; el.style.display='block';} else el.style.display='none';}
 function closePopover(){ const p=q('#popover'); if(p) p.style.display='none'; }
 
-/* ---------- 判斷該日是否有任何項目 ---------- */
-function dateHasAny(dayObj){
-  if(!dayObj) return false;
-  return Object.values(dayObj).some(courseObj=>{
-    if(!courseObj) return false;
-    return Object.values(courseObj).some(arr=>Array.isArray(arr)&&arr.length>0);
+// 判斷該日是否有內容或筆記
+function dayFlags(dayObj){
+  let hasContent=false, hasNote=false;
+  if(!dayObj) return {hasContent, hasNote};
+  Object.keys(dayObj).forEach(c=>{
+    Object.keys(dayObj[c]||{}).forEach(t=>{
+      const arr = dayObj[c][t]||[];
+      if(Array.isArray(arr) && arr.length){
+        if(t==='note') hasNote=true;
+        else hasContent=true;
+      }
+    });
   });
+  return {hasContent, hasNote};
 }
+
 
 /* ---------- 渲染月曆 ---------- */
 function renderCalendar(){
@@ -170,12 +186,26 @@ function renderCalendar(){
   const daysMap=manifest?.days||{};
   for(let day=1; day<=days; day++){
     const d=new Date(y,m,day), k=fmtYMD(d), cell=document.createElement('div'); cell.className='cell';
-    const has = dateHasAny(daysMap[k]);
-    if(has){
+    // 判斷該日是否有內容或筆記
+    const {hasContent, hasNote} = dayFlags(daysMap[k]);
+    // 是否放假（橘點）— 舊 manifest 沒 holidays 時會自動視為 []
+    const isOff = Array.isArray(manifest?.holidays) && manifest.holidays.includes(k);
+
+    if (hasContent || hasNote || isOff) {
+      // 統一給 .has（只是視覺用，不影響資料）
       cell.classList.add('has');
-      const dot=document.createElement('span'); dot.className='dot'; cell.appendChild(dot);
+
+      // 右上角可放 1～3 顆點（綠＋橘＋粉）
+      const dots = document.createElement('span');
+      dots.className = 'dots';
+      if (hasContent){ const g=document.createElement('span'); g.className='dot'; dots.appendChild(g); }
+      if (hasNote)   { const n=document.createElement('span'); n.className='dot dot-note'; dots.appendChild(n); }
+      if (isOff)     { const o=document.createElement('span'); o.className='dot dot-holiday'; dots.appendChild(o); }
+
+      // 點擊行為：有教材→開清單；只有放假→跳訊息
+      cell.appendChild(dots);
       cell.style.cursor='pointer';
-      cell.onclick=()=>openPopover(k, cell); // 只有點有綠點的日期才會開
+      cell.onclick = ()=>openPopover(k, cell, { has: hasContent||hasNote, isOff });
     }
     const todayStr=fmtYMD(new Date());
     if(k===todayStr) cell.classList.add('today');
@@ -201,34 +231,120 @@ function combosFor(dateKey){
   return combos;
 }
 function renderPopoverList(dateKey, courseKey, typeKey){
-  const wrap=q('#pList'); wrap.innerHTML='';
-  const arr=(((manifest.days?.[dateKey]||{})[courseKey]||{})[typeKey])||[];
-  if(!arr.length){ wrap.innerHTML='<div class="card">這個組合目前沒有內容</div>'; return; }
-  arr.forEach(it=>{
-    const card=document.createElement('div'); card.className='card';
-    const a=document.createElement('a'); a.href=it.path;  // 相對路徑，靜態可用
-    a.textContent=niceTitle(it);
-    card.appendChild(a); wrap.appendChild(card);
+  const wrap = q('#pList'); 
+  wrap.innerHTML = '';
+
+  const arr = (((manifest.days?.[dateKey]||{})[courseKey]||{})[typeKey]) || [];
+
+  // ★ 提醒 note：顯示文字摘要 + 連結
+  if (typeKey === 'note') {
+    if (!arr.length) {
+      wrap.innerHTML = '<div class="card">（本日沒有提醒）</div>';
+      return;
+    }
+    arr.forEach(it => {
+      const card = document.createElement('div'); 
+      card.className = 'card';
+
+      // 先放一個「載入中」，等抓到檔案再替換
+      const p = document.createElement('div'); 
+      p.textContent = '📌 載入中…';
+      card.appendChild(p);
+
+      if (it.path) {
+        const a = document.createElement('a');
+        a.href = it.path;
+        a.style.display = 'inline-block';
+        a.style.marginTop = '6px';
+        a.textContent = '查看完整提醒';
+        card.appendChild(a);
+      }
+
+      wrap.appendChild(card);
+
+      // 取檔案文字（安全：只用 textContent，不塞 innerHTML）
+      if (it.path) {
+        fetch(it.path).then(r => r.text()).then(raw => {
+          const doc = new DOMParser().parseFromString(raw, 'text/html');
+          const cont = doc.querySelector('.note') || doc.querySelector('.container');
+          let text = cont ? cont.textContent.trim() : (it.title || '提醒事項');
+          // 做個簡短摘要（可自行調整長度）
+          text = text.replace(/\s+/g, ' ').slice(0, 120);
+          p.textContent = '📌 ' + text;
+        }).catch(() => {
+          p.textContent = '📌 ' + (it.title || '提醒事項');
+        });
+      } else {
+        p.textContent = '📌 ' + (it.title || '提醒事項');
+      }
+    });
+    return; // note 類型處理完畢
+  }
+
+  // ★ 其他（教材/作業…）：維持原本做法，顯示連結
+  if (!arr.length) { 
+    wrap.innerHTML = '<div class="card">這個組合目前沒有內容</div>'; 
+    return; 
+  }
+  arr.forEach(it => {
+    const card = document.createElement('div'); 
+    card.className = 'card';
+    const a = document.createElement('a'); 
+    a.href = it.path;      // 相對路徑，靜態可用
+    a.textContent = niceTitle(it);
+    card.appendChild(a); 
+    wrap.appendChild(card);
   });
 }
-function openPopover(dateKey, anchorCell){
+function openPopover(dateKey, anchorCell, flags={}){
+  const { has=false, isOff=false } = flags;
   currentDate=dateKey;
+  // 本機才會顯示後台連結，這裡補上更新（與 loadAll 相同邏輯）
+  if (isLocal()) {
+    const qs = 'student=' + encodeURIComponent(currentStudent) + 
+    (currentDate ? '&date=' + encodeURIComponent(currentDate) : '');
+    q('#adminLink').innerHTML = `<a href="admin.html?${qs}" style="color:#a7f3d0">後台</a>`;
+  }
   const combos=combosFor(dateKey);
-  if(!combos.length) return;
+  // if(!combos.length) return; // 沒有資料就不開 popover
 
   const pop=q('#popover'); const app=q('#app');
   const csel=q('#pCourse'), tsel=q('#pType');
   csel.innerHTML=''; tsel.innerHTML='';
+  // 新增／更新放假 banner（橘色）
+  let banner = pop.querySelector('.holiday-banner');
+  if (isOff) {
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.className = 'card holiday-banner';
+      banner.style.borderColor = '#f59e0b';
+      banner.style.background = '#fff7e6';
+      banner.textContent = '🧡 此日標記為放假（仍可新增教材/作業）';
+      pop.insertBefore(banner, pop.firstChild);
+      }
+      } else if (banner) {
+        banner.remove();
+        }
   const courses=[...new Set(combos.map(x=>x.course))];
   const types=[...new Set(combos.map(x=>x.type))];
-  courses.forEach(c=>{const o=document.createElement('option'); o.value=c; o.textContent=manifest.courses?.[c]?.label||c; csel.appendChild(o);});
-  types.forEach(t=>{const o=document.createElement('option'); o.value=t; o.textContent=manifest.types?.[t]||t; tsel.appendChild(o);});
-  const ck = (currentCourse && courses.includes(currentCourse)) ? currentCourse : courses[0];
-  const tk = (currentType && types.includes(currentType)) ? currentType : types[0];
-  csel.value=ck; tsel.value=tk;
-  renderPopoverList(dateKey, ck, tk);
-  csel.onchange=()=>{ currentCourse=csel.value; renderPopoverList(dateKey, csel.value, tsel.value); };
-  tsel.onchange=()=>{ currentType=tsel.value; renderPopoverList(dateKey, csel.value, tsel.value); };
+  const headerRow = pop.querySelector('.row');   // 課程/類型那一排
+  const listWrap  = q('#pList');
+  if (combos.length === 0) {
+    // 沒教材：隱藏下拉，列表顯示一行說明（仍可由後台新增）
+    if (headerRow) headerRow.style.display = 'none';
+    listWrap.innerHTML = '<div class="card">（本日無教材/作業）</div>';
+  } else {
+    if (headerRow) headerRow.style.display = '';
+    courses.forEach(c=>{ const o=document.createElement('option'); o.value=c; o.textContent=manifest.courses?.[c]?.label||c; csel.appendChild(o); });
+    types.forEach(t=>{ const o=document.createElement('option'); o.value=t; o.textContent=manifest.types?.[t]||t; tsel.appendChild(o); });
+    const ck=(currentCourse&&courses.includes(currentCourse))?currentCourse:courses[0];
+    const tk=(currentType&&types.includes(currentType))?currentType:types[0];
+    csel.value=ck; tsel.value=tk;
+    renderPopoverList(dateKey, ck, tk);
+    csel.onchange=()=>{ currentCourse=csel.value; renderPopoverList(dateKey, csel.value, tsel.value); };
+    tsel.onchange=()=>{ currentType=tsel.value; renderPopoverList(dateKey, csel.value, tsel.value); };
+  }
+
 
   const ar=anchorCell.getBoundingClientRect();
   const pr=app.getBoundingClientRect();
@@ -265,7 +381,11 @@ async function loadAll(){
     q('#studentName').textContent = `學生：${stu?.name || currentStudent}`;
 
     // 本機顯示後台入口（線上不顯示／也不能用）
-    if(isLocal()) q('#adminLink').innerHTML = '<a href="admin.html" style="color:#a7f3d0">後台</a>';
+    if (isLocal()) {
+      const qs = 'student=' + encodeURIComponent(currentStudent)
+                + (currentDate ? '&date=' + encodeURIComponent(currentDate) : '');
+      q('#adminLink').innerHTML = `<a href="admin.html?${qs}" style="color:#a7f3d0">後台</a>`;
+    }
 
     manifest=await getJSON(`students/${currentStudent}/manifest.json`);
     renderCalendar();

@@ -29,6 +29,17 @@
   .list .item{background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:8px 10px;margin:6px 0;display:flex;justify-content:space-between;align-items:center;}
   .muted{opacity:.65}
   .links a{color:#2563eb;text-decoration:none;margin-left:8px}
+  .editstatus{display:flex;gap:8px;align-items:center;margin:8px 0 2px;}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;font-size:12px;background:#eef2ff;color:#1e3a8a;border:1px solid #c7d2fe;}
+  .pill.move{background:#fff7ed;color:#9a3412;border-color:#fed7aa;}
+  .btn-exit-edit{border:0;background:#e5e7eb;border-radius:8px;padding:5px 8px;cursor:pointer}
+
+  /* Segmented control for date tools */
+  .seg { display:inline-flex; border:1px solid #e5e7eb; border-radius:10px; overflow:hidden; background:#fff; }
+  .seg .segbtn { border:0; background:transparent; padding:6px 10px; cursor:pointer; font-size:14px; }
+  .seg .segbtn + .segbtn { border-left:1px solid #e5e7eb; }
+  .seg .segbtn:hover { background:#f9fafb; }
+  .tools { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
 
   /* 類型 chips */
   .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
@@ -64,6 +75,7 @@
   <div class="grid">
     <div class="box">
       <h3>建立 / 編輯（單鍵儲存）</h3>
+      <div id="editStatus" class="editstatus" aria-live="polite"></div>
       <div class="row">
         <input type="date" id="date"/>
         <select id="course"></select>
@@ -85,16 +97,38 @@
 
     <div class="box">
       <h3>現有條目</h3>
+      <button id="btnHoliday" class="btn" style="background:#f59e0b;color:#fff">放假 / 取消</button>
       <div class="row">
         <label>篩選日期：</label>
         <input type="date" id="filterDate"/>
+        <label><input type="checkbox" id="lockDate"> 表單日期跟隨篩選</label>
         <span class="muted">刪除會**同時**刪除 HTML 檔</span>
+        <div class="tools">
+          <div class="seg">
+            <button class="segbtn" id="btnPrevDay">前一日</button>
+            <button class="segbtn" id="btnToday">今天</button>
+            <button class="segbtn" id="btnNextDay">後一日</button>
+          </div>
+          <div class="seg">
+            <button class="segbtn" id="btnPrevWeek">上週</button>
+            <button class="segbtn" id="btnThisWeek">本週</button>
+            <button class="segbtn" id="btnNextWeek">下週</button>
+          </div>
+          <div class="seg">
+            <button class="segbtn" id="btnPrevMonth">上月</button>
+            <button class="segbtn" id="btnThisMonth">本月</button>
+            <button class="segbtn" id="btnNextMonth">下月</button>
+          </div>
+          <div class="seg">
+            <button class="segbtn" id="btnClearFilter">清除</button>
+          </div>
+        </div>  
+        <span id="filterBadge" class="muted"></span>
       </div>
       <div class="list" id="list"></div>
     </div>
   </div>
 
-  <!-- 新增：設定類型 -->
   <div class="box" style="margin-top:14px">
     <h3>設定：類型（type）</h3>
     <div class="row">
@@ -103,9 +137,7 @@
       <button class="btn" id="btnAddType">新增 / 更新 類型</button>
     </div>
     <div class="chips" id="typeChips"></div>
-    <div class="muted" style="margin-top:6px">
-      小提示：若要「改名」，建議新增新 key 後把舊條目改到新 key，再刪舊 key（僅當該類型沒有使用紀錄時可刪）。
-    </div>
+    <div class="muted" style="margin-top:6px">小提示：若要「改名」，建議新增新 key 後把舊條目改到新 key，再刪舊 key（僅當該類型沒有使用紀錄時可刪）。</div>
   </div>
 </div>
 
