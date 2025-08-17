@@ -346,14 +346,26 @@ function openPopover(dateKey, anchorCell, flags={}){
   }
 
 
-  const ar=anchorCell.getBoundingClientRect();
-  const pr=app.getBoundingClientRect();
-  pop.style.display='block';
-  pop.style.left = (ar.right - pr.left + 12) + 'px';
-  pop.style.top  = (ar.top - pr.top + window.scrollY - 6) + 'px';
-  const popRect=pop.getBoundingClientRect();
-  if(popRect.right > window.innerWidth - 12){
-    pop.style.left = (ar.left - pr.left - popRect.width - 12) + 'px';
+  const ar = anchorCell.getBoundingClientRect();
+  const pr = app.getBoundingClientRect();
+  pop.style.display = 'block';
+
+  // 以 .app 為定位容器，使用 cell 相對 .app 的位置
+  let left = ar.right - pr.left + 12;
+  let top  = ar.top   - pr.top  - 6;   // ❶ 移除多餘的 window.scrollY
+
+  pop.style.left = left + 'px';
+  pop.style.top  = top  + 'px';
+
+  // 邊界保護／翻轉：避免超出視窗
+  const popRect = pop.getBoundingClientRect();
+  if (popRect.right > window.innerWidth - 12) {
+    left = ar.left - pr.left - popRect.width - 12;         // 翻到左側
+    pop.style.left = Math.max(12, left) + 'px';
+  }
+  if (popRect.bottom > window.innerHeight - 12) {
+    top = ar.bottom - pr.top - popRect.height - 6;         // 翻到上方
+    pop.style.top = Math.max(12, top) + 'px';
   }
   document.addEventListener('click', onDocClick);
   function onDocClick(e){ if(pop.contains(e.target)||anchorCell.contains(e.target)) return; pop.style.display='none'; document.removeEventListener('click', onDocClick); }
