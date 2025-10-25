@@ -122,6 +122,16 @@
           }
         ]
       }
+    },
+    "2025-10-25": {
+      "english": {
+        "material": [
+          {
+            "title": "非洲豬瘟的威脅",
+            "path": "materials/庭妤/english/2025-10-25_非洲豬瘟的威脅.html"
+          }
+        ]
+      }
     }
   },
   "holidays": [
