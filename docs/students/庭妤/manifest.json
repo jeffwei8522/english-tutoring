@@ -132,6 +132,16 @@
           }
         ]
       }
+    },
+    "2025-11-01": {
+      "english": {
+        "material": [
+          {
+            "title": "",
+            "path": "materials/庭妤/english/2025-11-01_lesson.html"
+          }
+        ]
+      }
     }
   },
   "holidays": [
