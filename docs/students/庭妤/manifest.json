@@ -172,6 +172,16 @@
           }
         ]
       }
+    },
+    "2025-12-06": {
+      "english": {
+        "supplement": [
+          {
+            "title": "批改1",
+            "path": "materials/庭妤/english/2025-12-06_批改1.html"
+          }
+        ]
+      }
     }
   },
   "holidays": [

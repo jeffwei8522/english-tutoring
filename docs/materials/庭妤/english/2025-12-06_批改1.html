@@ -1,0 +1,287 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+      <title>批改1</title>
+      <style>body{font-family:system-ui,"Noto Sans TC",Arial,sans-serif;margin:0;background:#f6f7fb;} .header{background:#111827;color:#fff;padding:10px 14px;} .header a{color:#a7f3d0;text-decoration:none} .container{max-width:900px;margin:18px auto;background:#fff;border-radius:12px;padding:18px 20px;box-shadow:0 10px 30px rgba(0,0,0,.06)}</style>
+      </head><body>
+      <div class="header">← <a href="../../../index.html?student=%E5%BA%AD%E5%A6%A4&date=2025-12-06">返回日曆</a></div>
+      <div class="container"><h1>批改1</h1><!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Essay Correction: Spring was in the air!</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    
+    <!-- Chosen Palette: Academic Clean (White/Gray/Blue) with High Contrast Red for corrections -->
+    <!-- Application Structure Plan: 
+         1. Dashboard Header: Student details and summary stats.
+         2. Main Correction View: The core feature. A toggleable view showing the text with inline corrections (Red/Bold).
+         3. Analysis Section: Visual breakdown of error types (Chart.js) to help the teacher identify patterns.
+         4. Detailed Notes: The line-by-line feedback from the previous markdown, presented as cards.
+         5. Clean Version: A copyable, clean text for the student.
+    -->
+    
+    <!-- Visualization & Content Choices:
+         1. Goal: Compare (Original vs Corrected) -> Method: Inline HTML styling (strikethrough/red bold) -> Justification: Immediate visual feedback is requested by the user.
+         2. Goal: Analyze (Error Types) -> Method: Radar Chart (Chart.js) -> Justification: Shows the "shape" of the student's writing skills (e.g., strong narrative but weak collocation).
+         3. Goal: Inform (Detailed Notes) -> Method: Grid Layout Cards -> Justification: Breaks down complex grammatical explanations into digestible chunks.
+         4. CONFIRMATION: NO SVG graphics used. NO Mermaid JS used.
+    -->
+
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #F3F4F6;
+            color: #1F2937;
+        }
+        .serif-text {
+            font-family: 'Lora', serif;
+            line-height: 1.8;
+        }
+        .correction-mark {
+            color: #DC2626; /* Red-600 */
+            font-weight: 700;
+            background-color: #FEE2E2; /* Light Red Highlight */
+            padding: 0 4px;
+            border-radius: 2px;
+        }
+        .original-mark {
+            text-decoration: line-through;
+            color: #9CA3AF; /* Gray-400 */
+            margin-right: 4px;
+        }
+        .card {
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border: 1px solid #E5E7EB;
+        }
+        /* Chart Container */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            height: 300px;
+            margin: 0 auto;
+        }
+        .nav-btn.active {
+            background-color: #2563EB;
+            color: white;
+        }
+    </style>
+</head>
+<body class="pb-12">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center gap-3">
+                    <div class="bg-blue-600 text-white p-2 rounded-lg font-bold">EC</div>
+                    <div>
+                        <h1 class="text-lg font-bold text-gray-900">Essay Correction Report</h1>
+                        <p class="text-xs text-gray-500">Topic: Spring was in the air! | Date: 2025/12/06</p>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="switchTab('markup')" id="btn-markup" class="nav-btn active px-4 py-2 rounded-md text-sm font-medium transition text-gray-600 hover:bg-gray-100">批改模式</button>
+                    <button onclick="switchTab('clean')" id="btn-clean" class="nav-btn px-4 py-2 rounded-md text-sm font-medium transition text-gray-600 hover:bg-gray-100">純淨版</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+        <!-- Left Column: The Essay (Interactive) -->
+        <div class="lg:col-span-8 space-y-6">
+            
+            <!-- Tab 1: Markup View -->
+            <div id="view-markup" class="card p-8">
+                <div class="flex justify-between items-center mb-6 border-b pb-4">
+                    <h2 class="text-2xl font-bold text-gray-800">批改內容 (Correction Mode)</h2>
+                    <div class="flex gap-4 text-sm">
+                        <span class="flex items-center"><span class="w-3 h-3 bg-gray-400 mr-2 rounded-full opacity-50 line-through"></span> 原文 (Deleted)</span>
+                        <span class="flex items-center"><span class="w-3 h-3 bg-red-600 mr-2 rounded-sm"></span> 修正 (Revised)</span>
+                    </div>
+                </div>
+                
+                <div class="serif-text text-lg text-gray-700">
+                    <p class="mb-4">
+                        Spring was in the air! The temperature was mild and warm, and my flower farm finally became <span class="original-mark">invigorating</span><span class="correction-mark">vibrant / alive</span> again, <span class="original-mark">being filled</span><span class="correction-mark">filled</span> with vibrant colors and floral fragrance. Flower petals fluttered <span class="original-mark">through</span><span class="correction-mark">in</span> the breeze, <span class="original-mark">carring more</span><span class="correction-mark">carrying a</span> sweet flower scent <span class="original-mark">to</span><span class="correction-mark">into</span> the air.
+                    </p>
+                    <p class="mb-4">
+                        I really wanted more people to visit my flower farm, <span class="original-mark">and I had always thought so</span><span class="correction-mark">which had always been my goal</span>. Therefore, I opened my farm to the public and <span class="original-mark">settle advertisement</span><span class="correction-mark">placed advertisements</span> on <span class="correction-mark">social media platforms</span>. However, the <span class="original-mark">plot twisted on a day</span><span class="correction-mark">situation took a turn one day</span> when a woman <span class="original-mark">trespassed</span><span class="correction-mark">trespassed into</span> the flower section.
+                    </p>
+                    <p class="mb-4">
+                        I was <span class="original-mark">thinking about to remind</span><span class="correction-mark">thinking of reminding</span> the careless woman not to trample on those flowers, <span class="correction-mark">but</span> things started to get serious gradually. More and more people <span class="original-mark">trespassed</span><span class="correction-mark">crossed</span> the fences as they saw the woman merrily <span class="original-mark">take</span><span class="correction-mark">taking</span> selfies with my adorable flowers. People kept trampling <span class="correction-mark">on</span> my flowers, and the place swiftly turned into chaos. My flower farm was left in a mess.
+                    </p>
+                    <p class="mb-4">
+                        It has been a long time since <span class="original-mark">the</span><span class="correction-mark">that</span> terrible event happened, but I will never forget it. As <span class="original-mark">an</span><span class="correction-mark">the</span> owner of the flower farm, I feel a deep resentment toward the people who <span class="original-mark">are such</span><span class="correction-mark">were so</span> merciless that <span class="original-mark">has</span><span class="correction-mark">they had</span> ruined my flowers. <span class="original-mark">Since I even set</span><span class="correction-mark">I had even set up</span> a sign with the words "No trespassing" on it, <span class="correction-mark">but the</span> worst thing <span class="original-mark">is</span><span class="correction-mark">was</span> that people just <span class="original-mark">ignore</span><span class="correction-mark">ignored</span> my sign. What <span class="original-mark">an imbecile</span><span class="correction-mark">imbeciles</span> those people <span class="original-mark">are</span><span class="correction-mark">were</span>!
+                    </p>
+                    <p>
+                        As far as <span class="original-mark">Iim</span><span class="correction-mark">I am</span> concerned, the government should raise <span class="correction-mark">fines</span> and strengthen regulations to prevent people <span class="correction-mark">from</span> deliberately trespassing <span class="original-mark">in</span><span class="correction-mark">on</span> private <span class="original-mark">poperty</span><span class="correction-mark">property</span>.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Tab 2: Clean View (Hidden by default) -->
+            <div id="view-clean" class="card p-8 hidden">
+                <div class="flex justify-between items-center mb-6 border-b pb-4">
+                    <h2 class="text-2xl font-bold text-gray-800">最終修訂版 (Final Revised Version)</h2>
+                    <button onclick="copyText()" class="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded transition text-gray-600">複製全文 (Copy)</button>
+                </div>
+                <div id="clean-text" class="serif-text text-lg text-gray-800 leading-loose">
+                    <p class="mb-4">Spring was in the air! The temperature was mild and warm, and my flower farm finally became vibrant again, filled with vibrant colors and floral fragrance. Flower petals fluttered in the breeze, carrying a sweet floral scent into the air.</p>
+                    <p class="mb-4">I really wanted more people to visit my flower farm, which had always been my goal. Therefore, I opened my farm to the public and placed advertisements on social media platforms. However, the situation took a turn one day when a woman trespassed into the flower section.</p>
+                    <p class="mb-4">I was thinking of reminding the careless woman not to trample on those flowers, but things started to get serious gradually. More and more people crossed the fences as they saw the woman merrily taking selfies with my adorable flowers. People kept trampling on my flowers, and the place swiftly turned into chaos. My flower farm was left in a mess.</p>
+                    <p class="mb-4">It has been a long time since that terrible event happened, but I will never forget it. As the owner of the flower farm, I feel a deep resentment toward the people who were so merciless that they had ruined my flowers. I had even set up a sign with the words "No trespassing" on it, but the worst thing was that people just ignored it. What imbeciles those people were! As far as I am concerned, the government should raise fines and strengthen regulations to prevent people from deliberately trespassing on private property.</p>
+                </div>
+            </div>
+
+            <!-- Detailed Feedback List -->
+            <div class="space-y-4">
+                <h3 class="text-xl font-bold text-gray-800 flex items-center">
+                    <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded mr-2">11 Points</span>
+                    詳細批改註解 (Detailed Feedback)
+                </h3>
+                
+                <div id="feedback-list" class="grid grid-cols-1 gap-4">
+                    <!-- JS will populate this -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Analysis & Stats -->
+        <div class="lg:col-span-4 space-y-6">
+            
+            <!-- Skill Radar Chart -->
+            <div class="card p-6">
+                <h3 class="font-bold text-gray-800 mb-4">寫作能力分析 (Skill Analysis)</h3>
+                <div class="chart-container">
+                    <canvas id="skillChart"></canvas>
+                </div>
+                <p class="text-sm text-gray-500 mt-4 text-center">
+                    * 基於本次修正內容的弱點分析。<br>
+                    <span class="text-red-500 font-bold">Collocation (搭配詞)</span> 是本次最主要的修正點。
+                </p>
+            </div>
+
+            <!-- General Comments -->
+            <div class="card p-6 bg-blue-50 border-blue-100">
+                <h3 class="font-bold text-blue-900 mb-2">總評 (Overall Comments)</h3>
+                <p class="text-sm text-blue-800 leading-relaxed mb-4">
+                    這篇文章的故事張力很好，從美好的開頭轉折到混亂的場面，情緒表達也很到位（使用了 <em>resentment, imbeciles</em> 等高階詞彙）。
+                </p>
+                <h4 class="font-bold text-blue-900 text-sm mb-1">建議加強：</h4>
+                <ul class="list-disc list-inside text-sm text-blue-800 space-y-1">
+                    <li><strong>搭配詞 (Collocations):</strong> 如 <em>place advertisements</em>, <em>trespass on property</em>。</li>
+                    <li><strong>時態一致性:</strong> 故事發生在過去，描述當時狀態請維持過去式。</li>
+                    <li><strong>句型結構:</strong> 留意 <em>so...that...</em> 與 <em>such...that...</em> 的區別。</li>
+                </ul>
+            </div>
+
+        </div>
+
+    </main>
+
+    <script>
+        // --- Data: Detailed Feedback ---
+        const feedbackData = [
+            { id: 1, original: "invigorating", revised: "vibrant / alive", type: "Word Choice", note: "'Invigorating' 通常形容讓人精神煥發的事物（如微風），形容農場充滿生機用 'vibrant' 更自然。" },
+            { id: 2, original: "through the breeze", revised: "in the breeze", type: "Collocation", note: "慣用法為 'in the breeze'。" },
+            { id: 3, original: "I had always thought so", revised: "which had always been my goal", type: "Sentence Structure", note: "原句語意較模糊，改用關係子句補充說明這是一個長期目標會更清晰。" },
+            { id: 4, original: "settle advertisement", revised: "placed advertisements", type: "Collocation", note: "刊登廣告的動詞搭配是 'place'。" },
+            { id: 5, original: "the plot twisted", revised: "the situation took a turn", type: "Word Choice", note: "'Plot twisted' 多指小說戲劇劇情，描述真實事件用 'situation took a turn' 較自然。" },
+            { id: 6, original: "thinking about to remind", revised: "thinking of reminding", type: "Grammar", note: "'Think about' 或 'Think of' 後面應接 V-ing。" },
+            { id: 7, original: "trespassed (repeated)", revised: "crossed", type: "Word Choice", note: "避免重複使用同一動詞，這裡單純描述跨越圍籬，用 'crossed' 即可。" },
+            { id: 8, original: "such merciless", revised: "so merciless", type: "Grammar", note: "'Such' 接名詞 (such a person)，'So' 接形容詞 (so merciless)。" },
+            { id: 9, original: "Since I even set...", revised: "I had even set up...", type: "Sentence Structure", note: "原句 'Since' 開頭造成只有從屬子句而無主要子句。應改為獨立句子。" },
+            { id: 10, original: "ignore / are", revised: "ignored / were", type: "Tense", note: "故事發生在過去，時態應保持一致（過去式）。" },
+            { id: 11, original: "prevent ... in property", revised: "prevent ... from ... on property", type: "Collocation", note: "阻止某人做某事: prevent sb from V-ing; 非法入侵某地: trespass on property。" }
+        ];
+
+        // --- Render Feedback Cards ---
+        const feedbackList = document.getElementById('feedback-list');
+        feedbackList.innerHTML = feedbackData.map(item => `
+            <div class="card p-4 hover:border-blue-300 transition-colors border-l-4 border-l-red-500">
+                <div class="flex justify-between items-start mb-2">
+                    <span class="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded font-bold">#${item.id} ${item.type}</span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+                    <div class="text-sm text-gray-500 line-through">${item.original}</div>
+                    <div class="text-sm text-red-600 font-bold">➔ ${item.revised}</div>
+                </div>
+                <p class="text-sm text-gray-700 bg-gray-50 p-2 rounded">
+                    <span class="font-bold">💡 說明：</span> ${item.note}
+                </p>
+            </div>
+        `).join('');
+
+        // --- Chart.js: Skill Radar ---
+        const ctx = document.getElementById('skillChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Collocation (搭配詞)', 'Grammar (文法/句構)', 'Word Choice (用字)', 'Tense (時態)'],
+                datasets: [{
+                    label: 'Error Distribution',
+                    data: [4, 3, 3, 1], // Based on the 11 points roughly
+                    backgroundColor: [
+                        '#EF4444', // Red (Collocation - Major issue)
+                        '#F59E0B', // Yellow
+                        '#3B82F6', // Blue
+                        '#10B981'  // Green
+                    ],
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            font: { size: 12 }
+                        }
+                    }
+                }
+            }
+        });
+
+        // --- Tabs Logic ---
+        function switchTab(tab) {
+            const markupView = document.getElementById('view-markup');
+            const cleanView = document.getElementById('view-clean');
+            const btnMarkup = document.getElementById('btn-markup');
+            const btnClean = document.getElementById('btn-clean');
+
+            if (tab === 'markup') {
+                markupView.classList.remove('hidden');
+                cleanView.classList.add('hidden');
+                btnMarkup.classList.add('active');
+                btnClean.classList.remove('active');
+            } else {
+                markupView.classList.add('hidden');
+                cleanView.classList.remove('hidden');
+                btnMarkup.classList.remove('active');
+                btnClean.classList.add('active');
+            }
+        }
+
+        // --- Copy Text Logic ---
+        function copyText() {
+            const text = document.getElementById('clean-text').innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                alert('已複製全文！');
+            });
+        }
+    </script>
+</body>
+</html></div>
+      </body></html>
